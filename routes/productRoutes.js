@@ -6,7 +6,7 @@ const router = express.Router();
 // Add Product
 router.post("/", async (req, res) => {
     try {
-        const { name, description, price, stock, category, images } = req.body;
+        const { name, description, price, stock, category, images, tags } = req.body;
 
         // Check if category exists
         const categoryExists = await Category.findById(category);
@@ -20,7 +20,8 @@ router.post("/", async (req, res) => {
             price,
             stock,
             category,
-            images
+            images,
+            tags,
         });
 
         await product.save();

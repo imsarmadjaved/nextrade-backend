@@ -44,3 +44,9 @@ npm install --save-dev nodemon
     Ye express ka instance hai, jise hum server ke jesa treat karte hain.
     app object se hum routes, middlewares waghera define karte hain.
 6.  
+
+Flask: Create a server/app to recive requests
+sklearn: skitlearn, a machine learnign library
+TfidfVectorizer: convert text to nmbrs to see how often a word come and how unique a word come in sentence
+->TF(Term frequency): How many times
+->IDF(inverse Document Frequency): How uniquly

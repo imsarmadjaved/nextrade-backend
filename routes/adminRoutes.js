@@ -2,7 +2,6 @@ const express = require("express");
 const User = require("../models/User");
 const Product = require("../models/Product");
 const Order = require("../models/Order");
-
 const router = express.Router();
 
 // view all (Admin use)

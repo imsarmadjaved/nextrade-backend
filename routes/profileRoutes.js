@@ -3,8 +3,6 @@ const Profile = require("../models/Profile.js");
 const upload = require("../middleware/upload");
 const router = express.Router();
 
-
-
 // Create and update profile
 router.post("/:userId", async (req, res) => {
     try {

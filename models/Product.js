@@ -29,7 +29,17 @@ const productSchema = new mongoose.Schema(
         images: {
             type: [String],
             default: []
-        }
+        },
+        tags: [
+            { type: String }
+        ],
+        averageRating: {
+            type: Number,
+            default: 0
+        },
+        numReviews: {
+            type: Number, default: 0
+        },
     },
     { timestamps: true }
 );
