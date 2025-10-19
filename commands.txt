@@ -7,7 +7,7 @@ cd nextrade-backend
 npm init -y
 
                             ----required packages----
-npm install express mongoose dotenv cors bcryptjs jsonwebtoken
+npm install express mongoose dotenv cors bcryptjs jsonwebtoken multer
 npm install --save-dev nodemon
 | Package        | Use                                                                  |
 | -------------- | -------------------------------------------------------------------- |
@@ -18,7 +18,8 @@ npm install --save-dev nodemon
 | `bcryptjs`     | Password encrypt karne ke liye                                       |
 | `jsonwebtoken` | Login ke baad JWT token banane ke liye                               |
 | `nodemon`      | Server ko har save par auto restart karne ke liye (development tool) |
-
+| `Multer`       | the most common Node.js library for handling file uploads |
+                           
                             ----package.json----
 "scripts": {
   "start": "node server.js",

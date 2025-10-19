@@ -1,5 +1,3 @@
-const express = require("express");
-const router = express.Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
@@ -9,16 +7,13 @@ const registerUser = async (req, res) => {
     try {
         const { name, email, password, role } = req.body;
 
-        // Check if user already exists
         const existingUser = await User.findOne({ email });
         if (existingUser) {
             return res.status(400).json({ message: "Email already registered" });
         }
 
-        // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Create user
         const newUser = new User({
             name,
             email,
@@ -39,19 +34,16 @@ const loginUser = async (req, res) => {
     const { email, password } = req.body;
 
     try {
-        // Check if user exists
         const user = await User.findOne({ email });
         if (!user) {
             return res.status(400).json({ message: "Invalid email or password" });
         }
 
-        // Match password
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             return res.status(400).json({ message: "Invalid email or password" });
         }
 
-        // Create token
         const token = jwt.sign(
             { id: user._id, role: user.role },
             process.env.JWT_SECRET,
