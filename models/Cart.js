@@ -20,11 +20,18 @@ const cartSchema = new mongoose.Schema(
                     required: true,
                     min: 1,
                     default: 1
-                }
+                },
+                unitPrice: Number,
+                finalPrice: Number,
+                appliedTier: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "BulkPricingTier"
+                },
+                discountAmount: Number
             }
         ]
     },
     { timestamps: true }
 );
 
-module.exports = mongoose.model("Cart", cartSchema);
+module.exports = mongoose.model('Cart', cartSchema);

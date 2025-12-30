@@ -11,9 +11,24 @@ const categorySchema = new mongoose.Schema(
         description: {
             type: String,
             default: ""
+        },
+        image: {
+            type: String
+        },
+        icon: {
+            type: String
+        },
+        isFeatured: {
+            type: Boolean, default: false
+        },
+        productCount: {
+            type: Number, default: 0
         }
     },
     { timestamps: true }
 );
+
+categorySchema.index({ isFeatured: 1 });
+categorySchema.index({ isFeatured: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Category", categorySchema);

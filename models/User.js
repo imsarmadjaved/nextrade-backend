@@ -20,9 +20,17 @@ const userSchema = new mongoose.Schema(
         },
         role: {
             type: String,
-            enum: ["buyer", "seller", "admin"],
+            enum: ["buyer", "seller_pending", "seller_approved", "admin"],
             default: "buyer",
         },
+        approvalStatus: {
+            type: String,
+            enum: ["pending", "approved", "rejected"],
+            default: "pending"
+        },
+        approvalDate: Date,
+        rejectedReason: String,
+        submittedAt: Date,
         isBlocked: {
             type: Boolean,
             default: false,
@@ -33,7 +41,17 @@ const userSchema = new mongoose.Schema(
         resetPasswordExpire: {
             type: Date
         },
-
+        lastLogoutAt: {
+            type: Date,
+            default: null
+        },
+        storeName: {
+            type: String,
+            sparse: true
+        },
+        storeDescription: {
+            type: String
+        }
     },
     { timestamps: true }
 );

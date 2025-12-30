@@ -28,6 +28,10 @@ const adSchema = new mongoose.Schema(
             ref: "Category",
             required: true,
         },
+        payment: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Payment"
+        },
         createdBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
@@ -44,12 +48,46 @@ const adSchema = new mongoose.Schema(
         status: {
             type: String,
             enum: ["pending", "approved", "rejected"],
-            default: "pending",
+            default: "pending"
         },
         isActive: {
             type: Boolean,
-            default: true,
+            default: false,
         },
+        duration: {
+            type: Number,
+            required: true
+        },
+        totalCost: {
+            type: Number,
+            required: true
+        },
+        isDeleted: {
+            type: Boolean,
+            default: false
+        },
+        deletedAt: {
+            type: Date
+        },
+        deletedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User"
+        },
+        deletionReason: {
+            type: String
+        },
+        impressions: {
+            type: Number,
+            default: 0
+        },
+        clicks: {
+            type: Number,
+            default: 0
+        },
+        ctr: {
+            type: Number,
+            default: 0
+        }
     },
     { timestamps: true }
 );

@@ -18,7 +18,14 @@ const orderSchema = new mongoose.Schema(
                     type: Number,
                     required: true,
                     min: 1
-                }
+                },
+                unitPrice: Number,
+                finalPrice: Number,
+                appliedTier: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "BulkPricingTier"
+                },
+                discountAmount: Number
             }
         ],
         totalAmount: {
@@ -31,8 +38,29 @@ const orderSchema = new mongoose.Schema(
             default: "Pending"
         },
         shippingAddress: {
-            type: String,
-            required: true
+            fullName: {
+                type: String,
+                required: true
+            },
+            email: {
+                type: String,
+                required: true
+            },
+            phone: {
+                type: String,
+                required: true
+            },
+            address: {
+                type: String,
+                required: true
+            },
+            city: {
+                type: String,
+                required: true
+            },
+            postalCode: {
+                type: String
+            }
         },
         paymentMethod: {
             type: String,
