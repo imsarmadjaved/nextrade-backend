@@ -35,6 +35,11 @@ app.use(express.json());    //Converts incoming JSON request body into req.body
 // Connect to DB
 connectDB();
 
+// health check
+app.get("/health", (req, res) => {
+    res.status(200).send("OK");
+});
+
 // Routes
 app.use("/api/auth", authRoutes);   //authentication Routes
 app.use("/api/categories", categoryRoutes); //catagory routes
