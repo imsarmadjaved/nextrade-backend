@@ -26,14 +26,11 @@ dotenv.config();
 const app = express();
 
 // Middleware
-app.use(cors());
-// app.use(cors({
-//     origin: [
-//         "https://nextrade-frontend-td1m.vercel.app/"
-//     ],
-//     methods: ["GET", "POST", "PUT", "DELETE"],
-//     credentials: true
-// }));
+app.use(cors({
+    origin: "https://nextrade-frontend-td1m.vercel.app",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
+}));
 app.use(express.json());    //Converts incoming JSON request body into req.body
 
 // Connect to DB
