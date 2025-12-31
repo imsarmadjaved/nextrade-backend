@@ -31,6 +31,7 @@ app.use(cors({
         "http://localhost:5173",
         "https://nextrade-frontend-td1m.vercel.app/"
     ],
+    methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
 }));
 app.use(express.json());    //Converts incoming JSON request body into req.body
