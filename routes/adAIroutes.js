@@ -9,7 +9,8 @@ const roleCheck = require("../middleware/roleMiddleware");
 // AI service check
 const isAdAIServiceAvailable = async () => {
     try {
-        const response = await axios.get("http://127.0.0.1:5002/health", { timeout: 5000 });
+        const AI_URL = "https://nextrade-ad-ai-service-8fe5.up.railway.app/";
+        const response = await axios.get(`${AI_URL}/health`, { timeout: 5000 });
         return response.status === 200;
     } catch (error) {
         console.log("Ad AI service unavailable");

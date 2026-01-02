@@ -9,7 +9,8 @@ const roleCheck = require("../middleware/roleMiddleware");
 // Helper functions
 const isAIServiceAvailable = async () => {
     try {
-        const response = await axios.get("http://127.0.0.1:5001/health", { timeout: 5000 });
+        const AI_URL = "https://nextrade-product-ai-service-b4c3.up.railway.app";
+        const response = await axios.get(`${AI_URL}/health`, { timeout: 5000 });
         return response.status === 200;
     } catch (error) {
         console.log("AI service unavailable, using fallback");
