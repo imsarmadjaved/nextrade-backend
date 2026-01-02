@@ -5,11 +5,11 @@ const Advertisement = require("../models/ad");
 const UserActivity = require("../models/userActivity");
 const verifyToken = require("../middleware/authMiddleware");
 const roleCheck = require("../middleware/roleMiddleware");
+const AI_URL = "https://nextrade-ad-ai-service-8fe5.up.railway.app/";
 
 // AI service check
 const isAdAIServiceAvailable = async () => {
     try {
-        const AI_URL = "https://nextrade-ad-ai-service-8fe5.up.railway.app/";
         const response = await axios.get(`${AI_URL}/health`, { timeout: 5000 });
         return response.status === 200;
     } catch (error) {
