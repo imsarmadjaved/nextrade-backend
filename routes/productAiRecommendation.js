@@ -5,11 +5,11 @@ const UserActivity = require("../models/userActivity");
 const router = express.Router();
 const verifyToken = require("../middleware/authMiddleware");
 const roleCheck = require("../middleware/roleMiddleware");
+const AI_URL = "https://nextrade-product-ai-service-b4c3.up.railway.app";
 
 // Helper functions
 const isAIServiceAvailable = async () => {
     try {
-        const AI_URL = "https://nextrade-product-ai-service-b4c3.up.railway.app";
         const response = await axios.get(`${AI_URL}/health`, { timeout: 5000 });
         return response.status === 200;
     } catch (error) {
