@@ -18,16 +18,14 @@ const isAIServiceAvailable = async () => {
     }
 };
 
-const formatProductForAI = (product) => {
-    return {
-        _id: product._id.toString(),
-        name: product.name || "",
-        description: product.description || "",
-        category: product.category?.name || product.category || "",
-        tags: Array.isArray(product.tags) ? product.tags : [],
-        price: product.price || 0
-    };
-};
+const formatProductForAI = (product) => ({
+    _id: product._id.toString(),
+    name: product.name || "",
+    description: product.description || "",
+    category: product.category?.name || product.category || "",
+    tags: Array.isArray(product.tags) ? product.tags : [],
+    price: product.price || 0
+});
 
 // Enhanced fallback functions (moved from fallback route)
 const getFallbackProductRecommendations = async (productId, limit = 6) => {
@@ -121,7 +119,7 @@ router.get("/recommend/product/:productId", async (req, res) => {
         const formattedProducts = allProducts.map(formatProductForAI);
 
         // Call AI service
-        const response = await axios.post("http://127.0.0.1:5001/recommend", {
+        const response = await axios.post(`${AI_URL}/recommend`, {
             target_product_id: productId,
             products: formattedProducts,
         }, { timeout: 10000 });
@@ -208,7 +206,7 @@ router.get("/recommend/home/:userId", verifyToken, roleCheck(["buyer"]), async (
         const allProducts = await Product.find({ status: 'active' }).lean();
 
         // Call AI service
-        const response = await axios.post("http://127.0.0.1:5001/recommend", {
+        const response = await axios.post(`${AI_URL}/recommend`, {
             user_profile: userProfile,
             all_products: allProducts.map(formatProductForAI)
         }, { timeout: 10000 });

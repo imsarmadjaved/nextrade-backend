@@ -194,7 +194,7 @@ router.post("/recommend_ads/:userId", verifyToken, async (req, res) => {
         }));
 
         // Call AI service
-        const response = await axios.post("http://127.0.0.1:5002/recommend_ads", {
+        const response = await axios.post(`${AI_URL}/recommend_ads`, {
             ads: adPayload,
             user_activities: userProfile.activities,
             interests: userProfile.interests
