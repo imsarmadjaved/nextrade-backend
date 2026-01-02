@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from flask_cors import CORS
 import pandas as pd
 import numpy as np
 from collections import Counter
@@ -8,6 +9,7 @@ import random
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
+CORS(app)
 
 def get_category_name(category_data):
     """Extract meaningful category name"""
@@ -366,5 +368,5 @@ def recommend():
 def health_check():
     return jsonify({"status": "healthy"})
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=True)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))

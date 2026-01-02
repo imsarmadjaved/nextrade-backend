@@ -1,11 +1,13 @@
 from flask import Flask, request, jsonify
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from flask_cors import CORS
 import pandas as pd
 import numpy as np
 import random
 
 app = Flask(__name__)
+CORS(app)
 
 def create_ad_features(ad):
     """Create features from ad data"""
@@ -108,4 +110,4 @@ def health_check():
     return jsonify({"status": "healthy", "service": "ad_ai"})
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5002, debug=True)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
