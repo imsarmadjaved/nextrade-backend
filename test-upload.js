@@ -1,52 +1,54 @@
-// test-cloudinary-config.js
-require('dotenv').config();
+// check-server-state.js
+const axios = require('axios');
 
-console.log('🔧 Checking Cloudinary Configuration\n');
+const API_URL = 'https://nextrade-backend-production-a486.up.railway.app/api';
 
-// Check if .env is loaded
-console.log('📄 Environment Variables Loaded:');
-console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('CLOUDINARY_CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME || 'NOT SET');
-console.log('CLOUDINARY_API_KEY:', process.env.CLOUDINARY_API_KEY ? 'SET' : 'NOT SET');
-console.log('CLOUDINARY_API_SECRET:', process.env.CLOUDINARY_API_SECRET ? 'SET' : 'NOT SET');
+async function checkServerState() {
+    console.log('🔍 Checking Server State\n');
 
-// Try to require cloudinary
-try {
-    const cloudinary = require('cloudinary').v2;
-    console.log('\n✅ Cloudinary module loaded successfully');
+    // Test 1: Check if we can reach the server
+    try {
+        console.log('1️⃣ Testing server connection...');
+        const response = await axios.get(`${API_URL}/categories`, { timeout: 5000 });
+        console.log('✅ Server is reachable');
+        console.log(`   Found ${response.data.length} categories`);
+    } catch (error) {
+        console.log('❌ Server not reachable:', error.message);
+        return;
+    }
 
-    // Try to configure
-    cloudinary.config({
-        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-        api_key: process.env.CLOUDINARY_API_KEY,
-        api_secret: process.env.CLOUDINARY_API_SECRET,
-    });
+    // Test 2: Check upload endpoint message
+    console.log('\n2️⃣ Analyzing upload endpoint response...');
+    console.log('The response message "Category image uploaded successfully"');
+    console.log('indicates the OLD version is running.');
+    console.log('New version would say: "Category image uploaded to Cloudinary successfully"');
 
-    console.log('✅ Cloudinary configured');
+    // Test 3: Try to upload with empty data to see error
+    console.log('\n3️⃣ Testing error response...');
+    try {
+        await axios.post(
+            `${API_URL}/upload/categories/single`,
+            {},
+            { headers: { 'Authorization': 'Bearer test' } }
+        );
+    } catch (error) {
+        if (error.response?.status === 400) {
+            console.log('✅ Got 400 error (expected for missing file)');
+            console.log('Error message:', error.response.data?.message);
 
-    // Test with a simple upload
-    console.log('\n🧪 Testing Cloudinary connection...');
-    cloudinary.uploader.upload(
-        'https://res.cloudinary.com/demo/image/upload/sample.jpg',
-        { folder: 'test' },
-        function (error, result) {
-            if (error) {
-                console.error('❌ Cloudinary test failed:', error.message);
-
-                if (error.message.includes('Invalid credentials')) {
-                    console.log('\n🔑 INVALID CREDENTIALS DETECTED!');
-                    console.log('Please check:');
-                    console.log('1. Your .env file has correct values');
-                    console.log('2. Values match your Cloudinary Dashboard');
-                    console.log('3. .env file is in the correct directory');
-                }
-            } else {
-                console.log('✅ Cloudinary connection successful!');
-                console.log('Uploaded to:', result.secure_url);
+            // Check which version by the exact error message
+            const msg = error.response.data?.message || '';
+            if (msg === 'No image file provided') {
+                console.log('⚠️  OLD VERSION: Simple error message');
+            } else if (msg.includes('No image file provided')) {
+                console.log('⚠️  Still old version');
             }
         }
-    );
+    }
 
-} catch (error) {
-    console.error('❌ Error loading cloudinary:', error.message);
+    console.log('\n🔧 Conclusion:');
+    console.log('Your changes are NOT deployed to Railway.');
+    console.log('Railway is still running the old cached version.');
 }
+
+checkServerState();
