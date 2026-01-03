@@ -1,54 +1,106 @@
-// check-server-state.js
+// test-redeployed.js
 const axios = require('axios');
+const FormData = require('form-data');
 
 const API_URL = 'https://nextrade-backend-production-a486.up.railway.app/api';
+const TEST_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4ZjY0NjVmOWU0N2E1ZGZlNGExOGUxYyIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc2NzQ2MTg0MSwiZXhwIjoxNzY3NTQ4MjQxfQ.I9fwtxCwQ5D22SR4A-5WCJklImlwnNT2e8BwC073LLQ';
 
-async function checkServerState() {
-    console.log('🔍 Checking Server State\n');
+async function testRedeployed() {
+    console.log('🚀 Testing Redeployed Project\n');
+    console.log('API URL:', API_URL);
 
-    // Test 1: Check if we can reach the server
+    // Test 1: Check server health
+    console.log('\n1️⃣ Checking server health...');
     try {
-        console.log('1️⃣ Testing server connection...');
-        const response = await axios.get(`${API_URL}/categories`, { timeout: 5000 });
-        console.log('✅ Server is reachable');
-        console.log(`   Found ${response.data.length} categories`);
+        const health = await axios.get(`${API_URL}/categories`, { timeout: 5000 });
+        console.log('✅ Server responding');
+        console.log('   Categories found:', health.data.length);
     } catch (error) {
-        console.log('❌ Server not reachable:', error.message);
+        console.log('❌ Server not responding:', error.message);
         return;
     }
 
-    // Test 2: Check upload endpoint message
-    console.log('\n2️⃣ Analyzing upload endpoint response...');
-    console.log('The response message "Category image uploaded successfully"');
-    console.log('indicates the OLD version is running.');
-    console.log('New version would say: "Category image uploaded to Cloudinary successfully"');
-
-    // Test 3: Try to upload with empty data to see error
-    console.log('\n3️⃣ Testing error response...');
+    // Test 2: Test OLD upload endpoint (should show if updated)
+    console.log('\n2️⃣ Testing OLD upload endpoint (should show if updated)...');
     try {
-        await axios.post(
-            `${API_URL}/upload/categories/single`,
-            {},
-            { headers: { 'Authorization': 'Bearer test' } }
-        );
-    } catch (error) {
-        if (error.response?.status === 400) {
-            console.log('✅ Got 400 error (expected for missing file)');
-            console.log('Error message:', error.response.data?.message);
+        // Create minimal test image
+        const imageBuffer = Buffer.from([
+            0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01,
+            0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, 0xFF, 0xDB, 0x00, 0x43,
+            0x00, 0xFF, 0xC4, 0x00, 0x14, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF,
+            0xDA, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3F, 0x00, 0xFF, 0xD9
+        ]);
 
-            // Check which version by the exact error message
-            const msg = error.response.data?.message || '';
-            if (msg === 'No image file provided') {
-                console.log('⚠️  OLD VERSION: Simple error message');
-            } else if (msg.includes('No image file provided')) {
-                console.log('⚠️  Still old version');
+        const formData = new FormData();
+        formData.append('image', imageBuffer, {
+            filename: 'redeploy-test.jpg',
+            contentType: 'image/jpeg'
+        });
+
+        const response = await axios.post(
+            `${API_URL}/upload/categories/single`,
+            formData,
+            {
+                headers: {
+                    ...formData.getHeaders(),
+                    'Authorization': `Bearer ${TEST_TOKEN}`
+                },
+                timeout: 15000
+            }
+        );
+
+        console.log('✅ Upload endpoint responded');
+        console.log('   Message:', response.data.message);
+        console.log('   Image URL:', response.data.imageUrl);
+
+        // Check which version is running
+        if (response.data.message.includes('Cloudinary')) {
+            console.log('🎉 NEW VERSION DETECTED!');
+            if (response.data.imageUrl.includes('cloudinary.com')) {
+                console.log('✅✅✅ CLOUDINARY SUCCESS! ✅✅✅');
+                console.log('   Cloudinary URL:', response.data.imageUrl);
+            } else {
+                console.log('⚠️  New version but not Cloudinary URL');
+            }
+        } else if (response.data.message === 'Category image uploaded successfully') {
+            console.log('⚠️  OLD VERSION STILL RUNNING');
+            console.log('   Got local path:', response.data.imageUrl);
+        }
+
+    } catch (error) {
+        console.log('❌ Upload test failed:', error.message);
+        if (error.response) {
+            console.log('   Status:', error.response.status);
+            console.log('   Error:', error.response.data?.message);
+        }
+    }
+
+    // Test 3: Check if new test endpoints exist
+    console.log('\n3️⃣ Checking for new test endpoints...');
+
+    const testEndpoints = [
+        '/upload/test-version',
+        '/test/cloudinary-test',
+        '/upload/v2/categories'
+    ];
+
+    for (const endpoint of testEndpoints) {
+        try {
+            await axios.get(`${API_URL}${endpoint}`, { timeout: 3000 });
+            console.log(`✅ ${endpoint} - EXISTS`);
+        } catch (error) {
+            if (error.response?.status === 404) {
+                console.log(`❌ ${endpoint} - NOT FOUND`);
+            } else if (error.response?.status === 401) {
+                console.log(`✅ ${endpoint} - EXISTS (needs auth)`);
+            } else {
+                console.log(`❓ ${endpoint} - Error: ${error.message}`);
             }
         }
     }
 
-    console.log('\n🔧 Conclusion:');
-    console.log('Your changes are NOT deployed to Railway.');
-    console.log('Railway is still running the old cached version.');
+    console.log('\n🔍 Analysis Complete');
 }
 
-checkServerState();
+testRedeployed();
