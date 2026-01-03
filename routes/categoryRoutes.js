@@ -189,21 +189,24 @@ router.delete("/:id", verifyToken, roleCheck(["admin"]), async (req, res) => {
 router.post("/:id/upload-image", verifyToken, roleCheck(["admin"]), upload.single("image"), async (req, res) => {
     try {
         const category = await Category.findById(req.params.id);
-        if (!category) {
-            return res.status(404).json({ message: "Category not found" });
+        if (!category) return res.status(404).json({ message: "Category not found" });
+
+        if (!req.file || !req.file.path) {
+            return res.status(400).json({ message: "No image uploaded" });
         }
 
-        if (!req.file) {
-            return res.status(400).json({ message: "No image file provided" });
+        // Validate file type
+        if (!req.file.mimetype.startsWith("image/")) {
+            return res.status(400).json({ message: "Only image files are allowed" });
         }
 
-        const imageUrl = `/uploads/categories/${req.file.filename}`.replace(/\\/g, '/');
-        category.image = imageUrl;
+        // Save Cloudinary URL
+        category.image = req.file.path;
         await category.save();
 
         res.json({
             message: "Category image uploaded successfully",
-            imageUrl: imageUrl,
+            imageUrl: req.file.path,
             category
         });
     } catch (err) {
@@ -272,9 +275,8 @@ router.get("/featured/with-stats", async (req, res) => {
 
             let imageUrl = "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&h=300&fit=crop";
             if (category.image) {
-                imageUrl = category.image.startsWith("http")
-                    ? category.image
-                    : `process.env.SERVER_URL${category.image}`;
+                // Use Cloudinary URL directly
+                imageUrl = category.image;
             }
 
             return {

@@ -50,3 +50,8 @@ sklearn: skitlearn, a machine learnign library
 TfidfVectorizer: convert text to nmbrs to see how often a word come and how unique a word come in sentence
 ->TF(Term frequency): How many times
 ->IDF(inverse Document Frequency): How uniquly
+
+
+2IFi6Yhj1wYsPkeMSh0d64jE_HA
+998184338997357
+Root

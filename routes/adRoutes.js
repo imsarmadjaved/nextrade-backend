@@ -10,8 +10,12 @@ const sendEmail = require("../utils/sendEmail");
 const { getPaymentInstructions } = require("../utils/paymentInstructions");
 
 // Create ad
-router.post("/", verifyToken, roleCheck(["seller"]), async (req, res) => {
+router.post("/", verifyToken, roleCheck(["seller"]), upload.single("image"), async (req, res) => {
     try {
+        if (!req.file) {
+            return res.status(400).json({ message: "Ad image required" });
+        }
+
         const {
             title,
             description,
@@ -20,18 +24,13 @@ router.post("/", verifyToken, roleCheck(["seller"]), async (req, res) => {
             startDate,
             endDate,
             duration,
-            totalCost,
-            image
+            totalCost
         } = req.body;
-
-        if (!image) {
-            return res.status(400).json({ message: "Ad image required" });
-        }
 
         const newAd = new Ad({
             title,
             description,
-            image: image,
+            image: req.file.path,
             link,
             targetCategory,
             startDate,
@@ -49,8 +48,7 @@ router.post("/", verifyToken, roleCheck(["seller"]), async (req, res) => {
             message: "Ad created successfully, pending approval",
             ad: newAd
         });
-    }
-    catch (err) {
+    } catch (err) {
         res.status(500).json({ message: "Server error", error: err.message });
     }
 });
