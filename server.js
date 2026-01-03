@@ -69,7 +69,7 @@ app.use('/api/contact', contactRoutes); //customer support
 
 // image uploading
 app.use("/api/upload", uploadRoutes);
-app.use("/uploads", express.static(__dirname + "/uploads"));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Test route
 app.get("/", (req, res) => {
