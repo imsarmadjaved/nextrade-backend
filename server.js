@@ -71,7 +71,6 @@ app.use('/api/contact', contactRoutes); //customer support
 app.use("/api/upload", uploadRoutes);
 app.use("/uploads", express.static("/mnt/data/uploads"));
 
-
 // Test route
 app.get("/", (req, res) => {
     res.send("API is running...");
