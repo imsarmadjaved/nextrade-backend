@@ -25,14 +25,27 @@ const uploadToCloudinary = (folder) => {
             {
                 folder,
                 resource_type: "auto",
-                transformation: [{ width: 1200, crop: "limit" }],
+                transformation: [{ width: 800, height: 800, crop: "fill" }],
             },
             (error, result) => {
-                if (error) return res.status(500).json({ message: "Cloudinary upload failed", error });
+                if (error) {
+                    console.error("Cloudinary upload error:", error);
+                    return res.status(500).json({
+                        message: "Cloudinary upload failed",
+                        error: error.message
+                    });
+                }
 
-                // Attach Cloudinary URL and public ID
-                req.file.cloudinary_url = result.secure_url;
-                req.file.cloudinary_id = result.public_id;
+                // Store complete Cloudinary data
+                req.cloudinaryData = {
+                    url: result.secure_url,
+                    publicId: result.public_id,
+                    width: result.width,
+                    height: result.height,
+                    format: result.format,
+                    bytes: result.bytes,
+                    createdAt: result.created_at
+                };
 
                 next();
             }

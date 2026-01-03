@@ -5,6 +5,7 @@ const { uploadSingle } = require("../middleware/upload");
 const router = express.Router();
 const verifyToken = require("../middleware/authMiddleware");
 const roleCheck = require("../middleware/roleMiddleware");
+const cloudinary = require("cloudinary").v2;
 
 // Add Category
 router.post(
@@ -21,23 +22,42 @@ router.post(
                 return res.status(400).json({ message: "Category already exists" });
             }
 
-            const category = new Category({
+            // Create category with Cloudinary data
+            const categoryData = {
                 name,
                 description,
-                image: req.file?.cloudinary_url || "", // <-- use cloudinary_url
                 icon,
                 isFeatured: isFeatured || false,
-            });
+            };
 
+            // Add image data if uploaded
+            if (req.cloudinaryData) {
+                categoryData.image = {
+                    url: req.cloudinaryData.url,
+                    publicId: req.cloudinaryData.publicId,
+                    width: req.cloudinaryData.width,
+                    height: req.cloudinaryData.height,
+                    format: req.cloudinaryData.format
+                };
+            }
+
+            const category = new Category(categoryData);
             await category.save();
 
             res.status(201).json({
-                message: "Category created",
+                message: "Category created successfully",
                 category,
+                imageInfo: req.cloudinaryData ? {
+                    url: req.cloudinaryData.url,
+                    publicId: req.cloudinaryData.publicId
+                } : null
             });
         } catch (err) {
             console.error("Error creating category:", err);
-            res.status(500).json({ message: "Server error", error: err.message });
+            res.status(500).json({
+                message: "Server error",
+                error: err.message
+            });
         }
     }
 );
@@ -46,10 +66,20 @@ router.post(
 router.get("/", async (req, res) => {
     try {
         const categories = await Category.find().sort({ createdAt: -1 });
-        res.json(categories);
+
+        // Format categories with proper image URLs
+        const formattedCategories = categories.map(category => ({
+            ...category.toObject(),
+            imageUrl: category.image?.url || category.image || ""
+        }));
+
+        res.json(formattedCategories);
     } catch (err) {
         console.error("Error fetching categories:", err);
-        res.status(500).json({ message: "Server error", error: err.message });
+        res.status(500).json({
+            message: "Server error",
+            error: err.message
+        });
     }
 });
 
@@ -156,35 +186,62 @@ router.put(
     "/:id",
     verifyToken,
     roleCheck(["admin"]),
-    uploadSingle("image", "categories"), // <- Cloudinary middleware
+    uploadSingle("image", "categories"),
     async (req, res) => {
         try {
             const { name, description, icon, isFeatured } = req.body;
 
             const category = await Category.findById(req.params.id);
-            if (!category) return res.status(404).json({ message: "Category not found" });
+            if (!category) {
+                return res.status(404).json({ message: "Category not found" });
+            }
 
-            // Update fields from body
-            category.name = name || category.name;
-            category.description = description || category.description;
-            category.icon = icon || category.icon;
-            category.isFeatured = isFeatured ?? category.isFeatured;
+            // Check for name uniqueness (if name is being changed)
+            if (name && name !== category.name) {
+                const existing = await Category.findOne({ name });
+                if (existing) {
+                    return res.status(400).json({ message: "Category name already exists" });
+                }
+            }
 
-            // Update image if uploaded
-            if (req.file?.cloudinary_url) {
-                category.image = req.file.cloudinary_url;
-                category.imageId = req.file.cloudinary_id;
+            // Update basic fields
+            if (name) category.name = name;
+            if (description !== undefined) category.description = description;
+            if (icon !== undefined) category.icon = icon;
+            if (isFeatured !== undefined) category.isFeatured = isFeatured;
+
+            // Update image if new one uploaded
+            if (req.cloudinaryData) {
+                // Delete old image from Cloudinary if exists
+                if (category.image && category.image.publicId) {
+                    cloudinary.uploader.destroy(category.image.publicId)
+                        .then(result => console.log("Old image deleted:", result))
+                        .catch(err => console.error("Error deleting old image:", err));
+                }
+
+                // Set new image data
+                category.image = {
+                    url: req.cloudinaryData.url,
+                    publicId: req.cloudinaryData.publicId,
+                    width: req.cloudinaryData.width,
+                    height: req.cloudinaryData.height,
+                    format: req.cloudinaryData.format
+                };
             }
 
             await category.save();
 
             res.json({
-                message: "Category updated",
+                message: "Category updated successfully",
                 category,
+                imageUpdated: !!req.cloudinaryData
             });
         } catch (err) {
             console.error("Error updating category:", err);
-            res.status(500).json({ message: "Server error", error: err.message });
+            res.status(500).json({
+                message: "Server error",
+                error: err.message
+            });
         }
     }
 );
@@ -192,12 +249,35 @@ router.put(
 // Remove Category
 router.delete("/:id", verifyToken, roleCheck(["admin"]), async (req, res) => {
     try {
-        const category = await Category.findByIdAndDelete(req.params.id);
-        if (!category) return res.status(404).json({ message: "Category not found" });
-        res.json({ message: "Category deleted" });
+        const category = await Category.findById(req.params.id);
+        if (!category) {
+            return res.status(404).json({ message: "Category not found" });
+        }
+
+        // Delete image from Cloudinary if exists
+        if (category.image && category.image.publicId) {
+            try {
+                await cloudinary.uploader.destroy(category.image.publicId);
+                console.log(`Deleted image from Cloudinary: ${category.image.publicId}`);
+            } catch (cloudinaryErr) {
+                console.error("Error deleting from Cloudinary:", cloudinaryErr);
+                // Continue with deletion even if Cloudinary fails
+            }
+        }
+
+        // Delete category from database
+        await Category.findByIdAndDelete(req.params.id);
+
+        res.json({
+            message: "Category deleted successfully",
+            deletedImage: category.image ? true : false
+        });
     } catch (err) {
         console.error("Error deleting category:", err);
-        res.status(500).json({ message: "Server error", error: err.message });
+        res.status(500).json({
+            message: "Server error",
+            error: err.message
+        });
     }
 });
 

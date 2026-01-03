@@ -12,17 +12,36 @@ const categorySchema = new mongoose.Schema(
             type: String,
             default: ""
         },
+        // Better structure for Cloudinary
         image: {
-            type: String
+            url: {
+                type: String,
+                default: ""
+            },
+            publicId: {
+                type: String,
+                default: ""
+            },
+            width: {
+                type: Number
+            },
+            height: {
+                type: Number
+            },
+            format: {
+                type: String
+            }
         },
         icon: {
             type: String
         },
         isFeatured: {
-            type: Boolean, default: false
+            type: Boolean,
+            default: false
         },
         productCount: {
-            type: Number, default: 0
+            type: Number,
+            default: 0
         }
     },
     { timestamps: true }
