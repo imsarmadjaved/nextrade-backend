@@ -269,7 +269,7 @@ router.put("/:orderId/status", verifyToken, roleCheck(["admin", "seller"]), asyn
         if (status === "Delivered" && order.status !== "Delivered") {
             for (const item of order.items) {
                 try {
-                    await fetch(`http://localhost:5000/api/activity/purchase/${order.user}/${item.product._id}`, {
+                    await fetch(`process.env.SERVER_URL/api/activity/purchase/${order.user}/${item.product._id}`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',

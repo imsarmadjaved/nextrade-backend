@@ -270,12 +270,11 @@ router.get("/featured/with-stats", async (req, res) => {
                 bulkProducts: 0
             };
 
-            // Fix image URL
             let imageUrl = "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&h=300&fit=crop";
             if (category.image) {
                 imageUrl = category.image.startsWith("http")
                     ? category.image
-                    : `http://localhost:5000${category.image}`;
+                    : `process.env.SERVER_URL${category.image}`;
             }
 
             return {
