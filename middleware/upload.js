@@ -1,9 +1,6 @@
 const multer = require("multer");
-const cloudinary = require("cloudinary").v2;
+const cloudinary = require("../config/cloudinary");
 const streamifier = require("streamifier");
-
-console.log('=== UPLOAD MIDDLEWARE LOADED ===');
-console.log('Cloudinary cloud_name:', cloudinary.config().cloud_name || 'NOT SET');
 
 // Verify Cloudinary is configured
 if (!cloudinary.config().cloud_name) {

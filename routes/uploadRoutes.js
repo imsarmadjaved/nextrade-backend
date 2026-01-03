@@ -1,21 +1,11 @@
 const express = require("express");
 const multer = require("multer");
-const cloudinary = require("cloudinary").v2;
+const cloudinary = require("../config/cloudinary");
 const streamifier = require("streamifier");
 const verifyToken = require("../middleware/authMiddleware");
 const roleCheck = require("../middleware/roleMiddleware");
 
 const router = express.Router();
-
-// Configure Cloudinary
-cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
-console.log('✅ Upload routes loaded with DIRECT Cloudinary integration');
-console.log('Cloudinary cloud_name:', cloudinary.config().cloud_name);
 
 // Helper function for Cloudinary upload
 const uploadToCloudinary = (folder, file) => {
