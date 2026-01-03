@@ -35,35 +35,36 @@ app.use(cors({
 }));
 app.use(express.json()); // Parse incoming JSON
 
-app.get('/api/debug/vars', (req, res) => {
-    const allVars = {};
+app.get('/api/test-cloudinary', (req, res) => {
+    const cloudinary = require('cloudinary').v2;
 
-    // Check ALL environment variables
-    Object.keys(process.env).forEach(key => {
-        if (key.includes('CLOUDINARY') || key.includes('MONGODB') || key.includes('JWT') || key.includes('PORT')) {
-            allVars[key] = process.env[key] ? '***SET***' : 'NOT SET';
-        }
-    });
+    // Check if configured
+    const isConfigured = cloudinary.config().cloud_name &&
+        cloudinary.config().api_key &&
+        cloudinary.config().api_secret;
 
     res.json({
+        success: true,
+        message: "Cloudinary test endpoint",
         timestamp: new Date().toISOString(),
-        allEnvVars: Object.keys(process.env).filter(k => k.includes('CLOUDINARY')),
-        specificVars: {
-            CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || 'NOT FOUND',
-            CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY ? 'SET (hidden)' : 'NOT FOUND',
-            CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET ? 'SET (hidden)' : 'NOT FOUND',
-            NODE_ENV: process.env.NODE_ENV || 'NOT SET'
+        cloudinary: {
+            configured: isConfigured,
+            cloud_name: cloudinary.config().cloud_name || 'NOT SET',
+            api_key: cloudinary.config().api_key ? 'SET' : 'NOT SET',
+            api_secret: cloudinary.config().api_secret ? 'SET' : 'NOT SET'
         },
-        rawCloudinaryConfig: {
-            cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-            length: process.env.CLOUDINARY_CLOUD_NAME ? process.env.CLOUDINARY_CLOUD_NAME.length : 0
+        environment: {
+            CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || 'NOT SET IN PROCESS.ENV',
+            CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY ? 'SET' : 'NOT SET IN PROCESS.ENV',
+            CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET ? 'SET' : 'NOT SET IN PROCESS.ENV',
+            NODE_ENV: process.env.NODE_ENV || 'development',
+            total_env_vars: Object.keys(process.env).length
         }
     });
 });
 
 // Connect to DB
 connectDB();
-testCloudinaryOnStart();
 
 // Health check
 app.get("/health", (req, res) => {

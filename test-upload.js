@@ -1,37 +1,63 @@
-// test-vars.js
+// test-upload-working.js
 const axios = require('axios');
+const FormData = require('form-data');
 
 const API_URL = 'https://nextrade-backend-production-a486.up.railway.app/api';
+const TEST_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4ZjY0NjVmOWU0N2E1ZGZlNGExOGUxYyIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc2NzQ2MTg0MSwiZXhwIjoxNzY3NTQ4MjQxfQ.I9fwtxCwQ5D22SR4A-5WCJklImlwnNT2e8BwC073LLQ';
 
-async function testVars() {
-    console.log('🔍 Testing Environment Variables\n');
+async function testUpload() {
+    console.log('📤 Testing Upload Endpoint\n');
+
+    // Create a simple image buffer
+    const imageBuffer = Buffer.from([
+        0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01,
+        0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, 0xFF, 0xDB, 0x00, 0x43,
+        0x00, 0xFF, 0xC4, 0x00, 0x14, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF,
+        0xDA, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3F, 0x00, 0xFF, 0xD9
+    ]);
 
     try {
-        const response = await axios.get(`${API_URL}/debug/vars`);
-        console.log('✅ Debug endpoint response:');
+        const formData = new FormData();
+        formData.append('image', imageBuffer, {
+            filename: 'test-upload.jpg',
+            contentType: 'image/jpeg'
+        });
+
+        console.log('Uploading test image...');
+
+        const response = await axios.post(
+            `${API_URL}/upload/categories/single`,
+            formData,
+            {
+                headers: {
+                    ...formData.getHeaders(),
+                    'Authorization': `Bearer ${TEST_TOKEN}`
+                },
+                timeout: 15000
+            }
+        );
+
+        console.log('\n✅ Upload response:');
         console.log(JSON.stringify(response.data, null, 2));
 
-        const cloudName = response.data.specificVars.CLOUDINARY_CLOUD_NAME;
+        const imageUrl = response.data.imageUrl;
 
-        if (cloudName === 'NOT FOUND') {
-            console.log('\n❌ CLOUDINARY_CLOUD_NAME NOT FOUND!');
-            console.log('Even though you set it, Railway is not injecting it.');
-            console.log('\n🔧 Check:');
-            console.log('1. Go to Railway Dashboard → Variables');
-            console.log('2. Make sure CLOUDINARY_CLOUD_NAME is spelled EXACTLY');
-            console.log('3. Make sure there are no spaces');
-            console.log('4. Click "Redeploy" after saving');
-        } else if (cloudName === 'dau4kgetn') {
-            console.log('\n✅ Cloudinary cloud_name is correct!');
-            console.log('The issue might be in your code reading the variables.');
-        } else {
-            console.log('\n⚠️  Cloudinary cloud_name is:', cloudName);
-            console.log('Expected: dau4kgetn');
+        if (imageUrl.includes('cloudinary.com')) {
+            console.log('\n🎉🎉🎉 CLOUDINARY SUCCESS! 🎉🎉🎉');
+            console.log('Image uploaded to:', imageUrl);
+        } else if (imageUrl.startsWith('/uploads/')) {
+            console.log('\n⚠️  Still uploading locally to:', imageUrl);
+            console.log('This means Cloudinary is not configured in Railway.');
         }
 
     } catch (error) {
-        console.log('❌ Could not reach debug endpoint:', error.message);
+        console.log('\n❌ Upload failed:', error.message);
+        if (error.response) {
+            console.log('Status:', error.response.status);
+            console.log('Error:', error.response.data?.message);
+        }
     }
 }
 
-testVars();
+testUpload();
