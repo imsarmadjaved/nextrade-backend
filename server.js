@@ -27,7 +27,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-    origin: "https://nextrade-frontend.vercel.app",
+    origin: "https://nextrade-frontend.vercel.app/",
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
 }));
