@@ -14,7 +14,8 @@ router.post("/products/single", verifyToken, roleCheck(["seller", "admin"]), upl
         res.json({
             message: "Image uploaded successfully",
             imageUrl: req.file.path,
-            publicId: req.file.public_id
+            publicId: req.file.public_id,
+            secure_url: req.file.path
         });
     } catch (err) {
         res.status(500).json({ message: "Upload failed", error: err.message });
