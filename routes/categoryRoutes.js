@@ -13,10 +13,8 @@ router.post(
     roleCheck(["admin"]),
     upload.single("image"),
     async (req, res) => {
-        const image = req.file?.path;
-
         try {
-            const { name, description, image, icon, isFeatured } = req.body;
+            const { name, description, icon, isFeatured } = req.body;
 
             const existing = await Category.findOne({ name });
             if (existing) {
@@ -26,21 +24,23 @@ router.post(
             const category = new Category({
                 name,
                 description,
-                image,
+                image: req.file?.path || "",
                 icon,
-                isFeatured: isFeatured || false
+                isFeatured: isFeatured || false,
             });
+
             await category.save();
 
             res.status(201).json({
                 message: "Category created",
-                category
+                category,
             });
         } catch (err) {
             console.error("Error creating category:", err);
             res.status(500).json({ message: "Server error", error: err.message });
         }
-    });
+    }
+);
 
 // Get All Categories
 router.get("/", async (req, res) => {
