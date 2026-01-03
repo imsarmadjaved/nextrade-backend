@@ -35,8 +35,24 @@ app.use(cors({
 }));
 app.use(express.json()); // Parse incoming JSON
 
+const testCloudinaryOnStart = async () => {
+    try {
+        const cloudinary = require('./config/cloudinary');
+        // Simple API call to verify credentials
+        const result = await cloudinary.api.ping();
+        console.log('✅ Cloudinary connection successful');
+
+        // List existing folders
+        const folders = await cloudinary.api.root_folders();
+        console.log('📁 Existing folders:', folders.folders.map(f => f.name));
+    } catch (error) {
+        console.error('❌ Cloudinary connection failed:', error.message);
+    }
+};
+
 // Connect to DB
 connectDB();
+testCloudinaryOnStart();
 
 // Health check
 app.get("/health", (req, res) => {
