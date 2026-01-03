@@ -1,50 +1,52 @@
+// test-cloudinary-config.js
 require('dotenv').config();
-const cloudinary = require('cloudinary').v2;
 
-cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+console.log('🔧 Checking Cloudinary Configuration\n');
 
-async function testUpload() {
-    try {
-        console.log('Testing Cloudinary configuration...');
-        console.log('Cloud Name:', process.env.CLOUDINARY_CLOUD_NAME);
+// Check if .env is loaded
+console.log('📄 Environment Variables Loaded:');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('CLOUDINARY_CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME || 'NOT SET');
+console.log('CLOUDINARY_API_KEY:', process.env.CLOUDINARY_API_KEY ? 'SET' : 'NOT SET');
+console.log('CLOUDINARY_API_SECRET:', process.env.CLOUDINARY_API_SECRET ? 'SET' : 'NOT SET');
 
-        // Test 1: Upload to categories folder
-        console.log('\nTest 1: Uploading to categories folder...');
-        const result1 = await cloudinary.uploader.upload(
-            'https://res.cloudinary.com/demo/image/upload/sample.jpg',
-            {
-                folder: 'categories',
-                public_id: 'test-category-' + Date.now()
+// Try to require cloudinary
+try {
+    const cloudinary = require('cloudinary').v2;
+    console.log('\n✅ Cloudinary module loaded successfully');
+
+    // Try to configure
+    cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET,
+    });
+
+    console.log('✅ Cloudinary configured');
+
+    // Test with a simple upload
+    console.log('\n🧪 Testing Cloudinary connection...');
+    cloudinary.uploader.upload(
+        'https://res.cloudinary.com/demo/image/upload/sample.jpg',
+        { folder: 'test' },
+        function (error, result) {
+            if (error) {
+                console.error('❌ Cloudinary test failed:', error.message);
+
+                if (error.message.includes('Invalid credentials')) {
+                    console.log('\n🔑 INVALID CREDENTIALS DETECTED!');
+                    console.log('Please check:');
+                    console.log('1. Your .env file has correct values');
+                    console.log('2. Values match your Cloudinary Dashboard');
+                    console.log('3. .env file is in the correct directory');
+                }
+            } else {
+                console.log('✅ Cloudinary connection successful!');
+                console.log('Uploaded to:', result.secure_url);
             }
-        );
-        console.log('✅ Categories upload successful:', result1.secure_url);
+        }
+    );
 
-        // Test 2: Upload to products folder
-        console.log('\nTest 2: Uploading to products folder...');
-        const result2 = await cloudinary.uploader.upload(
-            'https://res.cloudinary.com/demo/image/upload/sample.jpg',
-            {
-                folder: 'products',
-                public_id: 'test-product-' + Date.now()
-            }
-        );
-        console.log('✅ Products upload successful:', result2.secure_url);
-
-        // Test 3: List folders
-        console.log('\nTest 3: Listing folders...');
-        const folders = await cloudinary.api.root_folders();
-        console.log('📁 Folders:', folders.folders);
-
-        console.log('\n🎉 All tests passed!');
-
-    } catch (error) {
-        console.error('❌ Test failed:', error.message);
-        console.error('Full error:', error);
-    }
+} catch (error) {
+    console.error('❌ Error loading cloudinary:', error.message);
 }
-
-testUpload();

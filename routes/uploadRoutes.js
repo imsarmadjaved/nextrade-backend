@@ -4,46 +4,50 @@ const verifyToken = require("../middleware/authMiddleware");
 const roleCheck = require("../middleware/roleMiddleware");
 const router = express.Router();
 
+console.log('=== UPLOAD ROUTES LOADED ===');
+console.log('uploadSingle type:', typeof uploadSingle);
+console.log('uploadMultiple type:', typeof uploadMultiple);
+
+
+// Helper function to get Cloudinary URL
+const getCloudinaryUrl = (req) => {
+    // First try cloudinaryData (new way)
+    if (req.cloudinaryData && req.cloudinaryData.url) {
+        return req.cloudinaryData.url;
+    }
+    // Fallback to file.cloudinary_url (old way)
+    if (req.file && req.file.cloudinary_url) {
+        return req.file.cloudinary_url;
+    }
+    return null;
+};
+
 // Single file upload for products
-router.post("/products/single", verifyToken, roleCheck(["seller", "admin"]), uploadSingle("image"), async (req, res) => {
-    try {
-        if (!req.file) {
-            return res.status(400).json({ message: "No image file provided" });
-        }
-
-        res.json({
-            message: "Image uploaded successfully",
-            imageUrl: req.file.cloudinary_url,
-            publicId: req.file.cloudinary_id,
-            secure_url: req.file.path
-        });
-    } catch (err) {
-        res.status(500).json({ message: "Upload failed", error: err.message });
-    }
-}
-);
-
-// Multiple files upload for products
-router.post(
-    "/products/multiple",
-    verifyToken,
-    roleCheck(["seller", "admin"]),
-    uploadMultiple("images", "products", 10),
+router.post("/products/single", verifyToken, roleCheck(["seller", "admin"]),
+    uploadSingle("image", "products"),
     async (req, res) => {
-        if (!req.files_cloudinary || req.files_cloudinary.length === 0) {
-            return res.status(400).json({ message: "No image files provided" });
-        }
-        const imageUrls = req.files_cloudinary.map(f => f.cloudinary_url);
+        try {
+            const imageUrl = getCloudinaryUrl(req);
+            if (!imageUrl) {
+                return res.status(400).json({ message: "No image file provided or upload failed" });
+            }
 
-        res.json({
-            message: "Images uploaded successfully",
-            imageUrls,
-            count: imageUrls.length,
-        });
+            res.json({
+                message: "Image uploaded to Cloudinary successfully",
+                imageUrl: imageUrl,
+                publicId: req.cloudinaryData?.publicId || req.file?.cloudinary_id,
+                secure_url: imageUrl,
+                width: req.cloudinaryData?.width,
+                height: req.cloudinaryData?.height,
+                format: req.cloudinaryData?.format
+            });
+        } catch (err) {
+            res.status(500).json({ message: "Upload failed", error: err.message });
+        }
     }
 );
 
-// catagories
+// categories upload - FIXED
 router.post(
     "/categories/single",
     verifyToken,
@@ -51,16 +55,34 @@ router.post(
     uploadSingle("image", "categories"),
     async (req, res) => {
         try {
-            if (!req.file) {
-                return res.status(400).json({ message: "No image file provided" });
+            const imageUrl = getCloudinaryUrl(req);
+            if (!imageUrl) {
+                return res.status(400).json({
+                    message: "No image file provided or Cloudinary upload failed"
+                });
             }
 
+            console.log("Cloudinary upload successful for category");
+            console.log("URL:", imageUrl);
+
             res.json({
-                message: "Category image uploaded successfully",
-                imageUrl: req.file.cloudinary_url,
+                message: "Category image uploaded to Cloudinary successfully",
+                imageUrl: imageUrl,
+                publicId: req.cloudinaryData?.publicId || req.file?.cloudinary_id,
+                secure_url: imageUrl,
+                details: req.cloudinaryData ? {
+                    width: req.cloudinaryData.width,
+                    height: req.cloudinaryData.height,
+                    format: req.cloudinaryData.format,
+                    size: req.cloudinaryData.bytes
+                } : null
             });
         } catch (err) {
-            res.status(500).json({ message: "Upload failed", error: err.message });
+            console.error("Upload route error:", err);
+            res.status(500).json({
+                message: "Upload failed",
+                error: err.message
+            });
         }
     }
 );
