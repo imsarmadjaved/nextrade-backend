@@ -1,11 +1,11 @@
 const express = require("express");
 const Payment = require("../models/payment");
 const verifyToken = require("../middleware/authMiddleware");
-const upload = require("../middleware/upload");
+const { uploadSingle, uploadMultiple } = require("../middleware/upload");
 const router = express.Router();
 
 // Upload payment proof (bank transfer)
-router.post("/:paymentId/upload-proof", verifyToken, upload.single("image"), async (req, res) => {
+router.post("/:paymentId/upload-proof", verifyToken, uploadSingle("image"), async (req, res) => {
     try {
         const payment = await Payment.findById(req.params.paymentId);
         if (!payment) return res.status(404).json({ message: "Payment not found" });

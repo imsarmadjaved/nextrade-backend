@@ -1,7 +1,7 @@
 const express = require("express");
 const Ad = require("../models/ad");
 const AdInteraction = require("../models/AdInteraction");
-const upload = require("../routes/uploadRoutes");
+const { uploadSingle, uploadMultiple } = require("../middleware/upload");
 const Payment = require("../models/payment");
 const router = express.Router();
 const verifyToken = require("../middleware/authMiddleware");
@@ -10,7 +10,7 @@ const sendEmail = require("../utils/sendEmail");
 const { getPaymentInstructions } = require("../utils/paymentInstructions");
 
 // Create ad
-router.post("/", verifyToken, roleCheck(["seller"]), upload.single("image"), async (req, res) => {
+router.post("/", verifyToken, roleCheck(["seller"]), uploadSingle("image"), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ message: "Ad image required" });

@@ -1,7 +1,7 @@
 const express = require("express");
 const Profile = require("../models/Profile.js");
 const User = require("../models/User");
-const upload = require("../middleware/upload");
+const { uploadSingle } = require("../middleware/upload");
 const router = express.Router();
 const verifyToken = require("../middleware/authMiddleware");
 const roleCheck = require("../middleware/roleMiddleware");
@@ -152,7 +152,7 @@ router.put("/me", verifyToken, async (req, res) => {
 });
 
 // Upload profile image (Cloudinary via upload middleware)
-router.post("/image", verifyToken, upload.single("image"), async (req, res) => {
+router.post("/image", verifyToken, uploadSingle("image"), async (req, res) => {
     try {
         const userId = req.user.id;
         if (!req.file) return res.status(400).json({ message: "No image file provided" });

@@ -35,29 +35,31 @@ app.use(cors({
 }));
 app.use(express.json()); // Parse incoming JSON
 
-const testCloudinaryOnStart = async () => {
-    try {
-        const cloudinary = require('./config/cloudinary');
-        // Simple API call to verify credentials
-        const result = await cloudinary.api.ping();
-        console.log('✅ Cloudinary connection successful');
+app.get('/api/debug/vars', (req, res) => {
+    const allVars = {};
 
-        // List existing folders
-        const folders = await cloudinary.api.root_folders();
-        console.log('📁 Existing folders:', folders.folders.map(f => f.name));
-    } catch (error) {
-        console.error('❌ Cloudinary connection failed:', error.message);
-    }
-};
+    // Check ALL environment variables
+    Object.keys(process.env).forEach(key => {
+        if (key.includes('CLOUDINARY') || key.includes('MONGODB') || key.includes('JWT') || key.includes('PORT')) {
+            allVars[key] = process.env[key] ? '***SET***' : 'NOT SET';
+        }
+    });
 
-// Add this after require('dotenv').config();
-console.log('🔧 Environment Variables Check:');
-console.log('PORT:', process.env.PORT);
-console.log('CLOUDINARY_CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME || 'NOT SET');
-console.log('CLOUDINARY_API_KEY:', process.env.CLOUDINARY_API_KEY ? 'SET' : 'NOT SET');
-console.log('CLOUDINARY_API_SECRET:', process.env.CLOUDINARY_API_SECRET ? 'SET' : 'NOT SET');
-console.log('MONGODB_URI:', process.env.MONGODB_URI ? 'SET' : 'NOT SET');
-console.log('JWT_SECRET:', process.env.JWT_SECRET ? 'SET' : 'NOT SET');
+    res.json({
+        timestamp: new Date().toISOString(),
+        allEnvVars: Object.keys(process.env).filter(k => k.includes('CLOUDINARY')),
+        specificVars: {
+            CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || 'NOT FOUND',
+            CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY ? 'SET (hidden)' : 'NOT FOUND',
+            CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET ? 'SET (hidden)' : 'NOT FOUND',
+            NODE_ENV: process.env.NODE_ENV || 'NOT SET'
+        },
+        rawCloudinaryConfig: {
+            cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+            length: process.env.CLOUDINARY_CLOUD_NAME ? process.env.CLOUDINARY_CLOUD_NAME.length : 0
+        }
+    });
+});
 
 // Connect to DB
 connectDB();

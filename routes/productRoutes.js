@@ -4,7 +4,7 @@ const Product = require("../models/Product");
 const Category = require("../models/Category");
 const Review = require("../models/Review");
 const User = require("../models/User");
-const upload = require("../middleware/upload");
+const { uploadSingle, uploadMultiple } = require("../middleware/upload");
 const verifyToken = require("../middleware/authMiddleware");
 const roleCheck = require("../middleware/roleMiddleware");
 const router = express.Router();
@@ -26,7 +26,7 @@ const isApprovedSeller = async (req, res, next) => {
 };
 
 // Add Product with image upload
-router.post("/", verifyToken, isApprovedSeller, upload.array("images", 5), async (req, res) => {
+router.post("/", verifyToken, isApprovedSeller, uploadMultiple("image"), async (req, res) => {
     try {
         const { name, description, price, stock, category, tags, salePrice, featured } = req.body;
         const sellerId = req.user.id;
@@ -383,7 +383,7 @@ router.get("/seller/:sellerId/public-profile", async (req, res) => {
 });
 
 // Update Product with optional image upload
-router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), upload.array("images", 5), async (req, res) => {
+router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), uploadMultiple("images"), async (req, res) => {
     try {
         const { name, description, price, stock, category, tags, salePrice, featured, status } = req.body;
 
