@@ -1,7 +1,7 @@
 const express = require("express");
 const Category = require("../models/Category");
 const Product = require("../models/Product");
-const upload = require("../middleware/upload");
+const { uploadSingle } = require("../middleware/upload");
 const router = express.Router();
 const verifyToken = require("../middleware/authMiddleware");
 const roleCheck = require("../middleware/roleMiddleware");
@@ -11,7 +11,7 @@ router.post(
     "/",
     verifyToken,
     roleCheck(["admin"]),
-    upload.single("image"),
+    uploadSingle("image", "categories"),
     async (req, res) => {
         try {
             const { name, description, icon, isFeatured } = req.body;
@@ -24,7 +24,7 @@ router.post(
             const category = new Category({
                 name,
                 description,
-                image: req.file?.path || "",
+                image: req.file?.cloudinary_url || "", // <-- use cloudinary_url
                 icon,
                 isFeatured: isFeatured || false,
             });
@@ -152,33 +152,42 @@ router.get("/:id", async (req, res) => {
 });
 
 // Update Category
-router.put("/:id", verifyToken, roleCheck(["admin"]), async (req, res) => {
-    try {
-        const { name, description, image, icon, isFeatured } = req.body;
+router.put(
+    "/:id",
+    verifyToken,
+    roleCheck(["admin"]),
+    uploadSingle("image", "categories"), // <- Cloudinary middleware
+    async (req, res) => {
+        try {
+            const { name, description, icon, isFeatured } = req.body;
 
-        const category = await Category.findByIdAndUpdate(
-            req.params.id,
-            {
-                name,
-                description,
-                image,
-                icon,
-                isFeatured
-            },
-            { new: true, runValidators: true }
-        );
+            const category = await Category.findById(req.params.id);
+            if (!category) return res.status(404).json({ message: "Category not found" });
 
-        if (!category) return res.status(404).json({ message: "Category not found" });
+            // Update fields from body
+            category.name = name || category.name;
+            category.description = description || category.description;
+            category.icon = icon || category.icon;
+            category.isFeatured = isFeatured ?? category.isFeatured;
 
-        res.json({
-            message: "Category updated",
-            category
-        });
-    } catch (err) {
-        console.error("Error updating category:", err);
-        res.status(500).json({ message: "Server error", error: err.message });
+            // Update image if uploaded
+            if (req.file?.cloudinary_url) {
+                category.image = req.file.cloudinary_url;
+                category.imageId = req.file.cloudinary_id;
+            }
+
+            await category.save();
+
+            res.json({
+                message: "Category updated",
+                category,
+            });
+        } catch (err) {
+            console.error("Error updating category:", err);
+            res.status(500).json({ message: "Server error", error: err.message });
+        }
     }
-});
+);
 
 // Remove Category
 router.delete("/:id", verifyToken, roleCheck(["admin"]), async (req, res) => {
@@ -193,34 +202,36 @@ router.delete("/:id", verifyToken, roleCheck(["admin"]), async (req, res) => {
 });
 
 // Upload category image
-router.post("/:id/upload-image", verifyToken, roleCheck(["admin"]), upload.single("image"), async (req, res) => {
-    try {
-        const category = await Category.findById(req.params.id);
-        if (!category) return res.status(404).json({ message: "Category not found" });
+router.post(
+    "/:id/upload-image",
+    verifyToken,
+    roleCheck(["admin"]),
+    uploadSingle("image", "categories"),
+    async (req, res) => {
+        try {
+            const category = await Category.findById(req.params.id);
+            if (!category) return res.status(404).json({ message: "Category not found" });
 
-        if (!req.file || !req.file.path) {
-            return res.status(400).json({ message: "No image uploaded" });
+            if (!req.file || !req.file.cloudinary_url) {
+                return res.status(400).json({ message: "No image uploaded" });
+            }
+
+            // Save Cloudinary URL and public ID
+            category.image = req.file.cloudinary_url;
+            category.imageId = req.file.cloudinary_id; // optional
+            await category.save();
+
+            res.json({
+                message: "Category image uploaded successfully",
+                imageUrl: req.file.cloudinary_url,
+                category
+            });
+        } catch (err) {
+            console.error("Error uploading category image:", err);
+            res.status(500).json({ message: "Server error", error: err.message });
         }
-
-        // Validate file type
-        if (!req.file.mimetype.startsWith("image/")) {
-            return res.status(400).json({ message: "Only image files are allowed" });
-        }
-
-        // Save Cloudinary URL
-        category.image = req.file.path;
-        await category.save();
-
-        res.json({
-            message: "Category image uploaded successfully",
-            imageUrl: req.file.path,
-            category
-        });
-    } catch (err) {
-        console.error("Error uploading category image:", err);
-        res.status(500).json({ message: "Server error", error: err.message });
     }
-});
+);
 
 router.get("/featured/with-stats", async (req, res) => {
     try {

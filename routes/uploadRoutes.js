@@ -1,11 +1,11 @@
 const express = require("express");
-const upload = require("../middleware/upload");
+const { uploadSingle, uploadMultiple } = require("../middleware/upload");
 const verifyToken = require("../middleware/authMiddleware");
 const roleCheck = require("../middleware/roleMiddleware");
 const router = express.Router();
 
 // Single file upload for products
-router.post("/products/single", verifyToken, roleCheck(["seller", "admin"]), upload.single("image"), async (req, res) => {
+router.post("/products/single", verifyToken, roleCheck(["seller", "admin"]), uploadSingle("image"), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ message: "No image file provided" });
@@ -13,8 +13,8 @@ router.post("/products/single", verifyToken, roleCheck(["seller", "admin"]), upl
 
         res.json({
             message: "Image uploaded successfully",
-            imageUrl: req.file.path,
-            publicId: req.file.public_id,
+            imageUrl: req.file.cloudinary_url,
+            publicId: req.file.cloudinary_id,
             secure_url: req.file.path
         });
     } catch (err) {
@@ -28,31 +28,27 @@ router.post(
     "/products/multiple",
     verifyToken,
     roleCheck(["seller", "admin"]),
-    upload.array("images", 10),
+    uploadMultiple("images", "products", 10),
     async (req, res) => {
-        try {
-            if (!req.files || req.files.length === 0) {
-                return res.status(400).json({ message: "No image files provided" });
-            }
-
-            const imageUrls = req.files.map(file => file.path);
-
-            res.json({
-                message: "Images uploaded successfully",
-                imageUrls,
-                count: imageUrls.length,
-            });
-        } catch (err) {
-            res.status(500).json({ message: "Upload failed", error: err.message });
+        if (!req.files_cloudinary || req.files_cloudinary.length === 0) {
+            return res.status(400).json({ message: "No image files provided" });
         }
+        const imageUrls = req.files_cloudinary.map(f => f.cloudinary_url);
+
+        res.json({
+            message: "Images uploaded successfully",
+            imageUrls,
+            count: imageUrls.length,
+        });
     }
 );
 
+// catagories
 router.post(
     "/categories/single",
     verifyToken,
     roleCheck(["admin"]),
-    upload.single("image"),
+    uploadSingle("image", "categories"),
     async (req, res) => {
         try {
             if (!req.file) {
@@ -61,7 +57,7 @@ router.post(
 
             res.json({
                 message: "Category image uploaded successfully",
-                imageUrl: req.file.path,
+                imageUrl: req.file.cloudinary_url,
             });
         } catch (err) {
             res.status(500).json({ message: "Upload failed", error: err.message });
@@ -69,10 +65,11 @@ router.post(
     }
 );
 
+//profile
 router.post(
     "/profile",
     verifyToken,
-    upload.single("image"),
+    uploadSingle("image", "profiles"),
     async (req, res) => {
         try {
             if (!req.file) {
@@ -81,7 +78,7 @@ router.post(
 
             res.json({
                 message: "Profile image uploaded successfully",
-                imageUrl: req.file.path,
+                imageUrl: req.file.cloudinary_url,
             });
         } catch (err) {
             res.status(500).json({ message: "Upload failed", error: err.message });
@@ -93,7 +90,7 @@ router.post(
 router.post(
     "/payment/proof",
     verifyToken,
-    upload.single("image"),
+    uploadSingle("image", "payments"),
     async (req, res) => {
         try {
             if (!req.file) {
@@ -102,8 +99,8 @@ router.post(
 
             res.json({
                 message: "Payment proof uploaded successfully",
-                imageUrl: req.file.path,
-                publicId: req.file.public_id
+                imageUrl: req.file.cloudinary_url,
+                publicId: req.file.cloudinary_id
             });
         } catch (error) {
             res.status(500).json({ message: "Failed to upload payment proof" });
