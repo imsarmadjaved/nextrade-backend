@@ -50,6 +50,15 @@ const testCloudinaryOnStart = async () => {
     }
 };
 
+// Add this after require('dotenv').config();
+console.log('🔧 Environment Variables Check:');
+console.log('PORT:', process.env.PORT);
+console.log('CLOUDINARY_CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME || 'NOT SET');
+console.log('CLOUDINARY_API_KEY:', process.env.CLOUDINARY_API_KEY ? 'SET' : 'NOT SET');
+console.log('CLOUDINARY_API_SECRET:', process.env.CLOUDINARY_API_SECRET ? 'SET' : 'NOT SET');
+console.log('MONGODB_URI:', process.env.MONGODB_URI ? 'SET' : 'NOT SET');
+console.log('JWT_SECRET:', process.env.JWT_SECRET ? 'SET' : 'NOT SET');
+
 // Connect to DB
 connectDB();
 testCloudinaryOnStart();
