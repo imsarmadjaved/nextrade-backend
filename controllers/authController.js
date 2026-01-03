@@ -250,7 +250,7 @@ const forgotPassword = async (req, res) => {
         await user.save();
 
         // Point to frontend
-        const resetUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/reset-password/${resetToken}`;
+        const resetUrl = `${process.env.CLIENT_URL || 'https://nextrade-frontend.vercel.app'}/reset-password/${resetToken}`;
 
         const message = `
       <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 10px;">
