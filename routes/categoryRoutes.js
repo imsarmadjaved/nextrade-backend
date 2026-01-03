@@ -31,13 +31,10 @@ router.post(
             };
 
             // Add image data if uploaded
-            if (req.cloudinaryData) {
+            if (req.file && req.file.cloudinary) {
                 categoryData.image = {
-                    url: req.cloudinaryData.url,
-                    publicId: req.cloudinaryData.publicId,
-                    width: req.cloudinaryData.width,
-                    height: req.cloudinaryData.height,
-                    format: req.cloudinaryData.format
+                    url: req.file.cloudinary.url,
+                    publicId: req.file.cloudinary.publicId
                 };
             }
 
@@ -70,7 +67,7 @@ router.get("/", async (req, res) => {
         // Format categories with proper image URLs
         const formattedCategories = categories.map(category => ({
             ...category.toObject(),
-            imageUrl: category.image?.url || category.image || ""
+            imageUrl: category.image?.url || ""
         }));
 
         res.json(formattedCategories);
@@ -211,21 +208,16 @@ router.put(
             if (isFeatured !== undefined) category.isFeatured = isFeatured;
 
             // Update image if new one uploaded
-            if (req.cloudinaryData) {
-                // Delete old image from Cloudinary if exists
-                if (category.image && category.image.publicId) {
-                    cloudinary.uploader.destroy(category.image.publicId)
-                        .then(result => console.log("Old image deleted:", result))
-                        .catch(err => console.error("Error deleting old image:", err));
+            if (req.file && req.file.cloudinary) {
+
+                // delete old image
+                if (category.image?.publicId) {
+                    await cloudinary.uploader.destroy(category.image.publicId);
                 }
 
-                // Set new image data
                 category.image = {
-                    url: req.cloudinaryData.url,
-                    publicId: req.cloudinaryData.publicId,
-                    width: req.cloudinaryData.width,
-                    height: req.cloudinaryData.height,
-                    format: req.cloudinaryData.format
+                    url: req.file.cloudinary.url,
+                    publicId: req.file.cloudinary.publicId
                 };
             }
 
@@ -280,38 +272,6 @@ router.delete("/:id", verifyToken, roleCheck(["admin"]), async (req, res) => {
         });
     }
 });
-
-// Upload category image
-router.post(
-    "/:id/upload-image",
-    verifyToken,
-    roleCheck(["admin"]),
-    uploadSingle("image", "categories"),
-    async (req, res) => {
-        try {
-            const category = await Category.findById(req.params.id);
-            if (!category) return res.status(404).json({ message: "Category not found" });
-
-            if (!req.file || !req.file.cloudinary_url) {
-                return res.status(400).json({ message: "No image uploaded" });
-            }
-
-            // Save Cloudinary URL and public ID
-            category.image = req.file.cloudinary_url;
-            category.imageId = req.file.cloudinary_id; // optional
-            await category.save();
-
-            res.json({
-                message: "Category image uploaded successfully",
-                imageUrl: req.file.cloudinary_url,
-                category
-            });
-        } catch (err) {
-            console.error("Error uploading category image:", err);
-            res.status(500).json({ message: "Server error", error: err.message });
-        }
-    }
-);
 
 router.get("/featured/with-stats", async (req, res) => {
     try {
