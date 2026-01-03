@@ -7,33 +7,40 @@ const verifyToken = require("../middleware/authMiddleware");
 const roleCheck = require("../middleware/roleMiddleware");
 
 // Add Category
-router.post("/", verifyToken, roleCheck(["admin"]), async (req, res) => {
-    try {
-        const { name, description, image, icon, isFeatured } = req.body;
+router.post(
+    "/",
+    verifyToken,
+    roleCheck(["admin"]),
+    upload.single("image"),
+    async (req, res) => {
+        const image = req.file?.path;
 
-        const existing = await Category.findOne({ name });
-        if (existing) {
-            return res.status(400).json({ message: "Category already exists" });
+        try {
+            const { name, description, image, icon, isFeatured } = req.body;
+
+            const existing = await Category.findOne({ name });
+            if (existing) {
+                return res.status(400).json({ message: "Category already exists" });
+            }
+
+            const category = new Category({
+                name,
+                description,
+                image,
+                icon,
+                isFeatured: isFeatured || false
+            });
+            await category.save();
+
+            res.status(201).json({
+                message: "Category created",
+                category
+            });
+        } catch (err) {
+            console.error("Error creating category:", err);
+            res.status(500).json({ message: "Server error", error: err.message });
         }
-
-        const category = new Category({
-            name,
-            description,
-            image,
-            icon,
-            isFeatured: isFeatured || false
-        });
-        await category.save();
-
-        res.status(201).json({
-            message: "Category created",
-            category
-        });
-    } catch (err) {
-        console.error("Error creating category:", err);
-        res.status(500).json({ message: "Server error", error: err.message });
-    }
-});
+    });
 
 // Get All Categories
 router.get("/", async (req, res) => {

@@ -14,7 +14,7 @@ router.post("/products/single", verifyToken, roleCheck(["seller", "admin"]), upl
         res.json({
             message: "Image uploaded successfully",
             imageUrl: req.file.path,
-            publicId: req.file.filename,
+            publicId: req.file.public_id
         });
     } catch (err) {
         res.status(500).json({ message: "Upload failed", error: err.message });
@@ -102,7 +102,7 @@ router.post(
             res.json({
                 message: "Payment proof uploaded successfully",
                 imageUrl: req.file.path,
-                publicId: req.file.filename,
+                publicId: req.file.public_id
             });
         } catch (error) {
             res.status(500).json({ message: "Failed to upload payment proof" });
