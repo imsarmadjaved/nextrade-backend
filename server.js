@@ -35,13 +35,13 @@ app.use(cors({
 }));
 app.use(express.json()); // Parse incoming JSON
 
+// Health check
+app.get("/health", (req, res) => {
+    res.status(200).json({ status: "ok", timestamp: new Date() });
+});
 // Connect to DB
 connectDB();
 
-// Health check
-app.get("/health", (req, res) => {
-    res.status(200).send("OK");
-});
 
 // Routes
 app.use("/api/auth", authRoutes);
