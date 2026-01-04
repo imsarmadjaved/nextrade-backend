@@ -28,6 +28,23 @@ const isApprovedSeller = async (req, res, next) => {
     }
 };
 
+const normalizeImages = (images) => {
+    if (!images) return [];
+    if (typeof images === "string") {
+        // Legacy single string => convert to array of objects
+        return [{ url: images, publicId: null }];
+    }
+    if (Array.isArray(images)) {
+        // Check if first item is string => convert to object array
+        if (images.length > 0 && typeof images[0] === "string") {
+            return images.map((img) => ({ url: img, publicId: null }));
+        }
+        return images;
+    }
+    return [];
+};
+
+
 // Add Product with multiple image upload
 router.post("/", verifyToken, isApprovedSeller, uploadMultiple("images", "products"), async (req, res) => {
     try {
@@ -51,7 +68,8 @@ router.post("/", verifyToken, isApprovedSeller, uploadMultiple("images", "produc
             price,
             stock,
             category,
-            images,
+            images: normalizeImages(req.cloudinaryFiles),
+
             tags: tagsArray || [],
             salePrice,
             featured: featured || false,
@@ -405,7 +423,7 @@ router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), uploadMultiple("
         }
 
         const updateData = { name, description, price, stock, category, tags, salePrice, featured, status };
-        if (images) updateData.images = images;
+        if (images) updateData.images = normalizeImages(images);
 
         const product = await Product.findByIdAndUpdate(req.params.id, updateData, { new: true });
         if (!product) return res.status(404).json({ message: "Product not found" });
