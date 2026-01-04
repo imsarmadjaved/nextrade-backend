@@ -436,10 +436,9 @@ router.get("/seller/:sellerId/public-profile", async (req, res) => {
 router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), async (req, res) => {
     try {
         const { name, description, price, stock, category, tags, salePrice, featured, status, images } = req.body;
-        const sellerId = req.user.id;
 
         console.log("=== PRODUCT UPDATE DEBUG ===");
-        console.log("Images received:", images);
+        console.log("Raw images received:", images);
         console.log("=== END DEBUG ===");
 
         // Validate required fields
@@ -450,41 +449,55 @@ router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), async (req, res)
         const categoryExists = await Category.findById(category);
         if (!categoryExists) return res.status(400).json({ message: "Invalid category" });
 
-        // Process tags same as POST route
+        // Process tags
         const tagsArray = tags
             ? Array.isArray(tags)
                 ? tags
                 : tags.split(",").map(t => t.trim())
             : [];
 
-        let cleanImages = images;
+        // Clean images - remove _id field and handle mixed formats
+        let cleanImages = [];
         if (images && Array.isArray(images)) {
             cleanImages = images.map(img => {
-                if (img && typeof img === 'object') {
-                    // Return only url and publicId, remove _id
-                    const { url, publicId } = img;
-                    return { url, publicId: publicId || null };
+                // If it's an object with url
+                if (img && typeof img === 'object' && img.url) {
+                    return {
+                        url: img.url,
+                        publicId: img.publicId || null
+                        // Don't include _id
+                    };
                 }
-                // If it's already a string, keep it
-                return img;
-            });
+                // If it's a string
+                if (typeof img === 'string') {
+                    return {
+                        url: img,
+                        publicId: null
+                    };
+                }
+                return null;
+            }).filter(img => img !== null); // Remove null entries
         }
 
-        // Create update data - use images directly like POST route
+        console.log("Cleaned images:", cleanImages);
+
+        // Create update data
         const updateData = {
             name,
             description,
-            price,
-            stock,
+            price: parseFloat(price),
+            stock: parseInt(stock),
             category,
-            images: cleanImages,
+            images: cleanImages, // Use cleaned images
             tags: tagsArray,
-            salePrice,
             featured: featured || false,
             status: status || "active",
         };
 
-        console.log("Update data:", updateData);
+        // Handle salePrice
+        if (salePrice !== undefined && salePrice !== null && salePrice !== "") {
+            updateData.salePrice = parseFloat(salePrice);
+        }
 
         const product = await Product.findByIdAndUpdate(
             req.params.id,
@@ -500,7 +513,9 @@ router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), async (req, res)
         });
     } catch (err) {
         console.error("PRODUCT UPDATE ERROR:", err);
+        console.error("Error details:", err.message);
         res.status(500).json({ message: "Server error", error: err.message });
     }
 });
+
 module.exports = router;
