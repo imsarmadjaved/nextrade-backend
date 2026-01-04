@@ -82,6 +82,70 @@ router.get("/me", verifyToken, async (req, res) => {
     }
 });
 
+/* Get profile by user ID (Admin only) */
+router.get("/:userId", verifyToken, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const requestingUser = await User.findById(req.user.id);
+
+        // Check if requesting user is admin
+        if (requestingUser.role !== "admin") {
+            return res.status(403).json({
+                message: "Only admins can view other users' profiles"
+            });
+        }
+
+        const user = await User.findById(userId).select(
+            "role name email storeName storeDescription createdAt"
+        );
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        const profile = await Profile.findOne({ user: userId });
+
+        if (!profile) {
+            return res.status(404).json({ message: "Profile not found for this user" });
+        }
+
+        const response = {
+            name: user.name,
+            email: user.email,
+            phone: profile.phone || "",
+            city: profile.city || "",
+            address: profile.address || "",
+            profileImage: profile.profileImage
+                ? typeof profile.profileImage === "string"
+                    ? profile.profileImage
+                    : profile.profileImage.url || ""
+                : "",
+            shopName: profile.shopName || user.storeName || "",
+            shopDescription: profile.shopDescription || user.storeDescription || "",
+            userRole: user.role,
+            isProfileComplete: profile.isProfileComplete || false
+        };
+
+        if (["seller_pending", "seller_approved"].includes(user.role)) {
+            Object.assign(response, {
+                businessType: profile.businessType || "",
+                businessAddress: profile.businessAddress || "",
+                cnicNumber: profile.cnicNumber || "",
+                businessPhone: profile.businessPhone || "",
+                yearsInBusiness: profile.yearsInBusiness || 0,
+                mainProducts: profile.mainProducts || [],
+                businessDescription: profile.businessDescription || ""
+            });
+        }
+
+        res.status(200).json(response);
+    } catch (err) {
+        res.status(500).json({ message: "Server error", error: err.message });
+    }
+});
+
+
+
 /* Update profile (non-image fields) */
 router.put("/me", verifyToken, async (req, res) => {
     try {
