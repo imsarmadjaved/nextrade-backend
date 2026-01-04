@@ -39,6 +39,12 @@ router.post("/", verifyToken, isApprovedSeller, uploadMultiple("images", "produc
 
         const images = req.cloudinaryFiles || [];
 
+        const tagsArray = tags
+            ? Array.isArray(tags)
+                ? tags
+                : tags.split(",").map(t => t.trim())
+            : [];
+
         const product = new Product({
             name,
             description,
@@ -46,7 +52,7 @@ router.post("/", verifyToken, isApprovedSeller, uploadMultiple("images", "produc
             stock,
             category,
             images,
-            tags: tags || [],
+            tags: tagsArray || [],
             salePrice,
             featured: featured || false,
             seller: sellerId,
