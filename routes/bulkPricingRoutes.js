@@ -5,7 +5,7 @@ const Product = require("../models/Product");
 const auth = require("../middleware/authMiddleware");
 
 // Add bulk tier to product
-router.post("/products/:id/bulk-pricing", auth, async (req, res) => {
+router.post("/bulk-pricing/products/:id", auth, async (req, res) => {
     try {
         const product = await Product.findById(req.params.id);
         if (!product) return res.status(404).json({ message: "Product not found" });
@@ -33,7 +33,7 @@ router.post("/products/:id/bulk-pricing", auth, async (req, res) => {
 });
 
 // Get all bulk tiers for a product
-router.get("/products/:id/bulk-pricing", async (req, res) => {
+router.get("/bulk-pricing/products/:id", async (req, res) => {
     try {
         const tiers = await BulkPricingTier.find({ product: req.params.id })
             .sort({ minQuantity: 1 });
@@ -92,7 +92,7 @@ router.delete("/bulk-pricing/:tierId", auth, async (req, res) => {
 });
 
 // Toggle bulk pricing enabled/disabled
-router.patch("/products/:id/bulk-pricing/toggle", auth, async (req, res) => {
+router.patch("/bulk-pricing/products/:id/toggle", auth, async (req, res) => {
     try {
         const product = await Product.findById(req.params.id);
         if (!product) return res.status(404).json({ message: "Product not found" });

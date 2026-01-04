@@ -29,7 +29,7 @@ const app = express();
 // Middleware
 app.use(cors({
     origin: "https://nextrade-frontend.vercel.app",
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization", "User-Fingerprint"],
     credentials: true
 }));
@@ -46,6 +46,7 @@ app.get("/health", (req, res) => {
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoryRoutes);
+app.use("/api", bulkPricingRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/ai/products", aiRecommendation);
 app.use("/api/cart", cartRoutes);
@@ -56,7 +57,6 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/ads", adRoutes);
 app.use("/api/ai/ads", adAIRoutes);
 app.use("/api/pricing", pricingRoutes);
-app.use("/api", bulkPricingRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/activity", activityRoutes);
 app.use("/api/contact", contactRoutes);
