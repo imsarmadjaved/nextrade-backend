@@ -518,4 +518,46 @@ router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), async (req, res)
     }
 });
 
+router.delete("/:id", verifyToken, roleCheck(["seller", "admin"]), async (req, res) => {
+    try {
+        const productId = req.params.id;
+        const userId = req.user.id;
+        const user = await User.findById(userId);
+
+        console.log("=== PRODUCT DELETE REQUEST ===");
+        console.log("Product ID:", productId);
+        console.log("User ID:", userId);
+        console.log("User role:", user.role);
+        console.log("=== END DEBUG ===");
+
+        const product = await Product.findById(productId);
+
+        if (!product) {
+            return res.status(404).json({ message: "Product not found" });
+        }
+
+        // Check authorization: admin can delete any product, seller can only delete their own
+        if (user.role !== "admin" && product.seller.toString() !== userId) {
+            return res.status(403).json({
+                message: "Not authorized to delete this product",
+                productOwner: product.seller.toString(),
+                currentUser: userId
+            });
+        }
+
+        await Product.findByIdAndDelete(productId);
+
+        res.json({
+            message: "Product deleted successfully",
+            productId: productId
+        });
+    } catch (err) {
+        console.error("PRODUCT DELETE ERROR:", err);
+        res.status(500).json({
+            message: "Server error",
+            error: err.message
+        });
+    }
+});
+
 module.exports = router;
