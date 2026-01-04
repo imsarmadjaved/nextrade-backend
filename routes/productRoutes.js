@@ -45,11 +45,17 @@ const normalizeImages = (images) => {
 };
 
 
-// Add Product with multiple image upload
 router.post("/", verifyToken, isApprovedSeller, async (req, res) => {
     try {
         const { name, description, price, stock, category, tags, salePrice, featured, images } = req.body;
         const sellerId = req.user.id;
+
+        console.log("=== PRODUCT CREATION DEBUG ===");
+        console.log("User ID:", sellerId);
+        console.log("Images received:", images);
+        console.log("Type of images:", typeof images);
+        console.log("Is array:", Array.isArray(images));
+        console.log("=== END DEBUG ===");
 
         // Validate required fields
         if (!name || !description || !price || !stock || !category) {
@@ -58,7 +64,10 @@ router.post("/", verifyToken, isApprovedSeller, async (req, res) => {
 
         // Validate images
         if (!images || !Array.isArray(images) || images.length === 0) {
-            return res.status(400).json({ message: "No images provided" });
+            return res.status(400).json({
+                message: "No images provided",
+                imagesReceived: images
+            });
         }
 
         const categoryExists = await Category.findById(category);
@@ -77,13 +86,14 @@ router.post("/", verifyToken, isApprovedSeller, async (req, res) => {
             price,
             stock,
             category,
-            images: images, // Directly use images array from request
+            images: images,
             tags: tagsArray,
             salePrice,
             featured: featured || false,
             seller: sellerId,
         });
 
+        console.log("Product to save:", product);
         await product.save();
 
         // Create default review
@@ -105,7 +115,13 @@ router.post("/", verifyToken, isApprovedSeller, async (req, res) => {
             product
         });
     } catch (err) {
-        res.status(500).json({ message: "Server error", error: err.message });
+        console.error("PRODUCT CREATION ERROR:", err);
+        console.error("Error stack:", err.stack);
+        res.status(500).json({
+            message: "Server error",
+            error: err.message,
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        });
     }
 });
 
