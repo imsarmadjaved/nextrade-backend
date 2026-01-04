@@ -10,161 +10,124 @@ const sendEmail = require("../utils/sendEmail");
 const { getPaymentInstructions } = require("../utils/paymentInstructions");
 
 // Create ad
-router.post("/", verifyToken, roleCheck(["seller"]), uploadSingle("image"), async (req, res) => {
-    try {
-        if (!req.file) {
-            return res.status(400).json({ message: "Ad image required" });
+router.post("/",
+    verifyToken,
+    roleCheck(["seller"]),
+    uploadSingle("image", "ads"),
+    async (req, res) => {
+        try {
+            // Check if image was uploaded
+            if (!req.file || !req.file.cloudinary) {
+                return res.status(400).json({ message: "Ad image required" });
+            }
+
+            const {
+                title,
+                description,
+                link,
+                targetCategory,
+                startDate,
+                endDate,
+                duration,
+                totalCost
+            } = req.body;
+
+            // Create image object (same format as products)
+            const adImage = {
+                url: req.file.cloudinary.url,
+                publicId: req.file.cloudinary.publicId
+            };
+
+            const newAd = new Ad({
+                title,
+                description,
+                images: [adImage], // Store as array with single image
+                link,
+                targetCategory,
+                startDate,
+                endDate,
+                duration: parseInt(duration),
+                totalCost: parseFloat(totalCost),
+                seller: req.user.id,
+                createdBy: req.user.id
+            });
+
+            await newAd.save();
+            await newAd.populate('seller', 'name email');
+
+            res.status(201).json({
+                message: "Ad created successfully, pending approval",
+                ad: newAd,
+                image: adImage // Return single image object
+            });
+        } catch (err) {
+            res.status(500).json({ message: "Server error", error: err.message });
         }
-
-        const {
-            title,
-            description,
-            link,
-            targetCategory,
-            startDate,
-            endDate,
-            duration,
-            totalCost
-        } = req.body;
-
-        const newAd = new Ad({
-            title,
-            description,
-            image: req.file.path,
-            link,
-            targetCategory,
-            startDate,
-            endDate,
-            duration: parseInt(duration),
-            totalCost: parseFloat(totalCost),
-            seller: req.user.id,
-            createdBy: req.user.id
-        });
-
-        await newAd.save();
-        await newAd.populate('seller', 'name email');
-
-        res.status(201).json({
-            message: "Ad created successfully, pending approval",
-            ad: newAd
-        });
-    } catch (err) {
-        res.status(500).json({ message: "Server error", error: err.message });
-    }
-});
+    });
 
 // status update route
+router.put("/:id/image",
+    verifyToken,
+    roleCheck(["seller", "admin"]),
+    uploadSingle("image", "ads"),
+    async (req, res) => {
+        try {
+            const ad = await Ad.findById(req.params.id);
+            if (!ad) {
+                return res.status(404).json({ message: "Ad not found" });
+            }
 
-router.put("/:id/status", verifyToken, roleCheck(["admin"]), async (req, res) => {
-    try {
-        const { status, rejectionReason } = req.body;
-        const ad = await Ad.findById(req.params.id)
-            .populate('seller', 'name email phone')
-            .populate('payment');
+            // Check authorization
+            if (req.user.role !== "admin" && ad.seller.toString() !== req.user.id) {
+                return res.status(403).json({ message: "Not authorized to update this ad" });
+            }
 
-        if (!ad) {
-            return res.status(404).json({ message: "Ad not found" });
-        }
-
-        // Validate status
-        if (!["pending", "approved", "rejected"].includes(status)) {
-            return res.status(400).json({
-                message: "Invalid status value"
-            });
-        }
-
-        // Store old status for comparison
-        const oldStatus = ad.status;
-        ad.status = status;
-
-        if (status === "approved") {
-            // When admin approves ad
-            ad.isActive = false; // Don't activate yet - needs payment
-
-            // Check if payment already exists
-            let payment = await Payment.findOne({
-                itemId: ad._id,
-                paymentFor: "ad"
-            });
-
-            if (payment) {
-                // Update existing payment
-                payment.status = "pending";
-                payment.method = "pending"; // Important: Set method to pending
-                await payment.save();
-                ad.payment = payment._id;
-            } else {
-                // Create new payment record
-                payment = new Payment({
-                    payer: ad.seller._id,
-                    paymentFor: "ad",
-                    itemId: ad._id,
-                    amount: ad.totalCost || 0,
-                    method: "pending", // Seller will choose later
-                    status: "pending"  // Payment not started
+            // Check if ad can be updated
+            if (ad.isActive) {
+                return res.status(400).json({
+                    message: "Cannot update image of an active ad"
                 });
-
-                await payment.save();
-                ad.payment = payment._id;
             }
 
-        } else if (status === "rejected") {
-            ad.isActive = false;
-
-            if (rejectionReason) {
-                ad.rejectionReason = rejectionReason;
+            if (ad.status === "rejected") {
+                return res.status(400).json({
+                    message: "Cannot update image of a rejected ad"
+                });
             }
 
-            // If payment exists, mark as failed
-            if (ad.payment) {
-                await Payment.findByIdAndUpdate(
-                    ad.payment._id || ad.payment,
-                    { status: "failed" },
-                    { new: true }
-                );
+            // Check if new image was uploaded
+            if (!req.file || !req.file.cloudinary) {
+                return res.status(400).json({ message: "No image provided" });
             }
 
-        } else if (status === "pending") {
-            ad.isActive = false;
+            // Create new image object
+            const newImage = {
+                url: req.file.cloudinary.url,
+                publicId: req.file.cloudinary.publicId
+            };
+
+            // Store old image for cleanup (optional)
+            const oldImage = ad.images && ad.images.length > 0 ? ad.images[0] : null;
+
+            // Update ad with new single image in array
+            ad.images = [newImage];
+            ad.updatedAt = new Date();
+
+            await ad.save();
+
+            // Optional: Delete old image from Cloudinary
+            // if (oldImage && oldImage.publicId) {
+            //     cloudinary.uploader.destroy(oldImage.publicId);
+            // }
+
+            res.json({
+                message: "Ad image updated successfully",
+                image: newImage // Return the image object
+            });
+        } catch (err) {
+            res.status(500).json({ message: "Server error", error: err.message });
         }
-
-        await ad.save();
-
-        // Re-populate for response AND email
-        const updatedAd = await Ad.findById(ad._id)
-            .populate('seller', 'name email phone')
-            .populate('payment');
-
-        // Send emails AFTER saving and re-populating
-        if (status === "approved") {
-            try {
-                await sendAdApprovalEmail(updatedAd); // Use updatedAd, not ad
-            } catch (emailError) {
-                console.error("Failed to send approval email:", emailError);
-            }
-        } else if (status === "rejected") {
-            try {
-                await sendAdRejectionEmail(updatedAd, rejectionReason, false);
-            } catch (emailError) {
-                console.error("Failed to send rejection email:", emailError);
-            }
-        }
-
-        res.json({
-            success: true,
-            message: `Ad status updated to ${status}`,
-            ad: updatedAd
-        });
-
-    } catch (err) {
-        console.error("Error updating ad status:", err);
-        res.status(500).json({
-            success: false,
-            message: "Server error",
-            error: err.message
-        });
-    }
-});
+    });
 
 // Email for approved ads with payment instructions
 const sendAdApprovalEmail = async (ad) => {
@@ -382,19 +345,34 @@ const sendPaymentConfirmationEmail = async (ad) => {
 };
 
 // View ads (Approved and active)
-router.get("/", async (req, res) => {
+router.get("/:id/image", async (req, res) => {
     try {
-        await Ad.updateMany(
-            { endDate: { $lt: new Date() }, isActive: true },
-            { $set: { isActive: false } }
-        );
+        const ad = await Ad.findById(req.params.id);
+        if (!ad) {
+            return res.status(404).json({ message: "Ad not found" });
+        }
 
-        const activeAds = await Ad.find({
-            status: "approved",
-            isActive: true,
-        }).populate("seller", "name email").sort({ createdAt: -1 }).limit(5);
+        // Return image in consistent format
+        let image = null;
 
-        res.json(activeAds);
+        if (ad.images && ad.images.length > 0) {
+            // Get first image from array
+            image = ad.images[0];
+        } else if (ad.image && typeof ad.image === 'string') {
+            // Legacy format support
+            image = {
+                url: ad.image,
+                publicId: null
+            };
+        }
+
+        res.json({
+            image,
+            // Include ad info for context
+            adId: ad._id,
+            title: ad.title,
+            status: ad.status
+        });
     } catch (err) {
         res.status(500).json({ message: "Server error", error: err.message });
     }
@@ -465,7 +443,7 @@ router.get("/:id", async (req, res) => {
 // Update ads
 router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), async (req, res) => {
     try {
-        const { isActive, ...otherUpdates } = req.body;
+        const { isActive, image, ...otherUpdates } = req.body;
 
         const ad = await Ad.findById(req.params.id)
             .populate('seller', 'name email')
@@ -473,6 +451,11 @@ router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), async (req, res)
 
         if (!ad) {
             return res.status(404).json({ message: "Ad not found" });
+        }
+
+        // Check authorization
+        if (req.user.role !== "admin" && ad.seller.toString() !== req.user.id) {
+            return res.status(403).json({ message: "Not authorized to update this ad" });
         }
 
         // Check if trying to activate ad
@@ -498,10 +481,49 @@ router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), async (req, res)
             }
         }
 
-        // If trying to deactivate ad, no restrictions
+        // Handle image update - FIXED to match consistent format
+        if (image) {
+            let imageArray = [];
+
+            if (Array.isArray(image)) {
+                // If array is sent, convert to proper format
+                imageArray = image.map(img => {
+                    if (typeof img === 'string') {
+                        return {
+                            url: img,
+                            publicId: null
+                        };
+                    } else if (img && typeof img === 'object' && img.url) {
+                        return {
+                            url: img.url,
+                            publicId: img.publicId || null
+                        };
+                    }
+                    return null;
+                }).filter(img => img !== null);
+            } else if (typeof image === 'string') {
+                // Single image URL string
+                imageArray = [{
+                    url: image,
+                    publicId: null
+                }];
+            } else if (image && typeof image === 'object' && image.url) {
+                // Single image object
+                imageArray = [{
+                    url: image.url,
+                    publicId: image.publicId || null
+                }];
+            }
+
+            if (imageArray.length > 0) {
+                otherUpdates.images = imageArray;
+            }
+        }
+
+        // Update the ad
         const updatedAd = await Ad.findByIdAndUpdate(
             req.params.id,
-            req.body,
+            otherUpdates,
             { new: true }
         ).populate('seller', 'name email').populate('payment');
 
@@ -511,7 +533,9 @@ router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), async (req, res)
 
         res.json({
             message: "Ad updated successfully",
-            updatedAd
+            ad: updatedAd,
+            // Return images in consistent format
+            images: updatedAd.images || []
         });
     } catch (err) {
         res.status(500).json({ message: "Server error", error: err.message });

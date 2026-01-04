@@ -33,7 +33,15 @@ const paymentSchema = new mongoose.Schema({
         enum: ["pending", "processing", "completed", "failed", "refunded"],
         default: "pending"
     },
-    proofImage: String,
+    images: [{
+        url: {
+            type: String,
+            required: true
+        },
+        publicId: {
+            type: String
+        }
+    }],
     transactionId: String,
     paidAt: Date,
     verifiedAt: Date,
