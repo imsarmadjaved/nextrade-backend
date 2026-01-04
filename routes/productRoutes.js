@@ -433,22 +433,36 @@ router.get("/seller/:sellerId/public-profile", async (req, res) => {
 });
 
 // Update product with optional image upload
-router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), uploadMultiple("images", "products"), async (req, res) => {
+router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), async (req, res) => {
     try {
-        const { name, description, price, stock, category, tags, salePrice, featured, status } = req.body;
+        const { name, description, price, stock, category, tags, salePrice, featured, status, images } = req.body;
+
+        console.log("=== PRODUCT UPDATE DEBUG ===");
+        console.log("Images received for update:", images);
+        console.log("Type of images:", typeof images);
+        console.log("=== END DEBUG ===");
 
         if (category) {
             const categoryExists = await Category.findById(category);
             if (!categoryExists) return res.status(400).json({ message: "Invalid category" });
         }
 
-        let images;
-        if (req.cloudinaryFiles && req.cloudinaryFiles.length > 0) {
-            images = req.cloudinaryFiles;
-        }
+        const updateData = {
+            name,
+            description,
+            price,
+            stock,
+            category,
+            tags,
+            salePrice,
+            featured,
+            status
+        };
 
-        const updateData = { name, description, price, stock, category, tags, salePrice, featured, status };
-        if (images) updateData.images = normalizeImages(images);
+        // Only update images if provided
+        if (images && Array.isArray(images) && images.length > 0) {
+            updateData.images = normalizeImages(images);
+        }
 
         const product = await Product.findByIdAndUpdate(req.params.id, updateData, { new: true });
         if (!product) return res.status(404).json({ message: "Product not found" });
