@@ -41,12 +41,15 @@ router.post(
     roleCheck(["seller", "admin"]),
     uploadMultiple("images", "products", 10),
     (req, res) => {
-        const imageUrls = req.cloudinaryFiles.map((img) => img.url);
+        const images = req.cloudinaryFiles.map((img) => ({
+            url: img.url,
+            publicId: img.publicId
+        }));
 
         res.json({
             message: "Images uploaded successfully",
-            imageUrls,
-            count: imageUrls.length,
+            images: images,
+            count: images.length,
         });
     }
 );
