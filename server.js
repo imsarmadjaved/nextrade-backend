@@ -30,38 +30,10 @@ const app = express();
 app.use(cors({
     origin: "https://nextrade-frontend.vercel.app",
     methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "User-Fingerprint"],
     credentials: true
 }));
 app.use(express.json()); // Parse incoming JSON
-
-app.get('/api/test-cloudinary', (req, res) => {
-    const cloudinary = require('cloudinary').v2;
-
-    // Check if configured
-    const isConfigured = cloudinary.config().cloud_name &&
-        cloudinary.config().api_key &&
-        cloudinary.config().api_secret;
-
-    res.json({
-        success: true,
-        message: "Cloudinary test endpoint",
-        timestamp: new Date().toISOString(),
-        cloudinary: {
-            configured: isConfigured,
-            cloud_name: cloudinary.config().cloud_name || 'NOT SET',
-            api_key: cloudinary.config().api_key ? 'SET' : 'NOT SET',
-            api_secret: cloudinary.config().api_secret ? 'SET' : 'NOT SET'
-        },
-        environment: {
-            CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || 'NOT SET IN PROCESS.ENV',
-            CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY ? 'SET' : 'NOT SET IN PROCESS.ENV',
-            CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET ? 'SET' : 'NOT SET IN PROCESS.ENV',
-            NODE_ENV: process.env.NODE_ENV || 'development',
-            total_env_vars: Object.keys(process.env).length
-        }
-    });
-});
 
 // Connect to DB
 connectDB();

@@ -35,6 +35,27 @@ router.post(
     }
 );
 
+router.post(
+    "/products/multiple",
+    upload.uploadMultiple("images", "products"),
+    async (req, res) => {
+        try {
+            const uploadedImages = req.files.map((file) => ({
+                url: file.path,        // Cloudinary secure_url
+                publicId: file.public_id,
+            }));
+
+            res.json({
+                imageUrls: uploadedImages.map((img) => img.url), // only URLs for frontend
+                count: uploadedImages.length,
+            });
+        } catch (error) {
+            console.error("Gallery upload error:", error);
+            res.status(500).json({ message: "Failed to upload gallery images" });
+        }
+    }
+);
+
 // PRODUCT (multiple)
 router.post(
     "/products/multiple",
