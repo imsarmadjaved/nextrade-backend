@@ -41,9 +41,12 @@ router.post(
             const category = new Category(categoryData);
             await category.save();
 
+            const savedCategory = category.toObject();
+            savedCategory.image = savedCategory.image?.url || "";
+
             res.status(201).json({
                 message: "Category created successfully",
-                category,
+                category: savedCategory, // Send formatted version
                 imageInfo: req.cloudinaryData ? {
                     url: req.cloudinaryData.url,
                     publicId: req.cloudinaryData.publicId
@@ -137,7 +140,6 @@ router.get("/with-counts", async (req, res) => {
     }
 });
 
-// Alternative simpler endpoint
 router.get("/with-product-counts", async (req, res) => {
     try {
         console.log("Fetching categories with product counts (alternative)...");
@@ -148,9 +150,20 @@ router.get("/with-product-counts", async (req, res) => {
                 const productCount = await Product.countDocuments({
                     category: category._id
                 });
+
+                // Convert image to string URL
+                const imageUrl = category.image?.url || "";
+
                 return {
-                    ...category.toObject(),
-                    productCount
+                    _id: category._id,
+                    name: category.name,
+                    description: category.description,
+                    image: imageUrl, // String URL
+                    icon: category.icon,
+                    isFeatured: category.isFeatured,
+                    productCount,
+                    createdAt: category.createdAt,
+                    updatedAt: category.updatedAt
                 };
             })
         );
@@ -190,7 +203,12 @@ router.get("/:id", async (req, res) => {
         console.log("Fetching category by ID:", req.params.id);
         const category = await Category.findById(req.params.id);
         if (!category) return res.status(404).json({ message: "Category not found" });
-        res.json(category);
+
+        // Convert to plain object and format image
+        const categoryObj = category.toObject();
+        categoryObj.image = categoryObj.image?.url || "";
+
+        res.json(categoryObj);
     } catch (err) {
         console.error("Error fetching category:", err);
         res.status(500).json({ message: "Server error", error: err.message });
@@ -241,10 +259,12 @@ router.put(
             }
 
             await category.save();
+            const updatedCategory = category.toObject();
+            updatedCategory.image = updatedCategory.image?.url || "";
 
             res.json({
                 message: "Category updated successfully",
-                category,
+                category: updatedCategory,
                 imageUpdated: !!req.cloudinaryData
             });
         } catch (err) {
