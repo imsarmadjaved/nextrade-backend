@@ -38,6 +38,14 @@ app.use(express.json()); // Parse incoming JSON
 // Connect to DB
 connectDB();
 
+app.get("/healthcheck", (req, res) => {
+    res.status(200).json({
+        status: "ok",
+        timestamp: new Date().toISOString(),
+        service: "NexTrade API"
+    });
+});
+
 // Health check
 app.get("/health", (req, res) => {
     res.status(200).send("OK");
