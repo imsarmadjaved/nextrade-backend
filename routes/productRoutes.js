@@ -46,15 +46,23 @@ const normalizeImages = (images) => {
 
 
 // Add Product with multiple image upload
-router.post("/", verifyToken, isApprovedSeller, uploadMultiple("images", "products"), async (req, res) => {
+router.post("/", verifyToken, isApprovedSeller, async (req, res) => {
     try {
-        const { name, description, price, stock, category, tags, salePrice, featured } = req.body;
+        const { name, description, price, stock, category, tags, salePrice, featured, images } = req.body;
         const sellerId = req.user.id;
+
+        // Validate required fields
+        if (!name || !description || !price || !stock || !category) {
+            return res.status(400).json({ message: "Missing required fields" });
+        }
+
+        // Validate images
+        if (!images || !Array.isArray(images) || images.length === 0) {
+            return res.status(400).json({ message: "No images provided" });
+        }
 
         const categoryExists = await Category.findById(category);
         if (!categoryExists) return res.status(400).json({ message: "Invalid category" });
-
-        const images = req.cloudinaryFiles || [];
 
         const tagsArray = tags
             ? Array.isArray(tags)
@@ -62,15 +70,15 @@ router.post("/", verifyToken, isApprovedSeller, uploadMultiple("images", "produc
                 : tags.split(",").map(t => t.trim())
             : [];
 
+        // Create product with images from request body
         const product = new Product({
             name,
             description,
             price,
             stock,
             category,
-            images: normalizeImages(req.cloudinaryFiles),
-
-            tags: tagsArray || [],
+            images: images, // Directly use images array from request
+            tags: tagsArray,
             salePrice,
             featured: featured || false,
             seller: sellerId,
@@ -78,6 +86,7 @@ router.post("/", verifyToken, isApprovedSeller, uploadMultiple("images", "produc
 
         await product.save();
 
+        // Create default review
         const defaultReview = new Review({
             product: product._id,
             user: sellerId,
