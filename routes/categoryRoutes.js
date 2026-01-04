@@ -85,7 +85,6 @@ router.get("/with-counts", async (req, res) => {
     try {
         console.log("Fetching categories with counts...");
 
-        // Simple approach without aggregation
         const categories = await Category.find().sort({ createdAt: -1 });
 
         const categoriesWithCounts = await Promise.all(
@@ -94,11 +93,22 @@ router.get("/with-counts", async (req, res) => {
                     const productCount = await Product.countDocuments({
                         category: category._id
                     });
+
+                    // Always return image as string URL
+                    let imageUrl = "";
+                    if (category.image) {
+                        if (typeof category.image === 'string') {
+                            imageUrl = category.image;
+                        } else if (category.image.url) {
+                            imageUrl = category.image.url;
+                        }
+                    }
+
                     return {
                         _id: category._id,
                         name: category.name,
                         description: category.description,
-                        image: category.image?.url || "",
+                        image: imageUrl, // Always string URL
                         icon: category.icon,
                         isFeatured: category.isFeatured,
                         productCount: productCount,
@@ -109,7 +119,8 @@ router.get("/with-counts", async (req, res) => {
                     console.error(`Error counting products for category ${category._id}:`, countError);
                     return {
                         ...category.toObject(),
-                        productCount: 0
+                        productCount: 0,
+                        image: category.image?.url || "" // Ensure string URL
                     };
                 }
             })
