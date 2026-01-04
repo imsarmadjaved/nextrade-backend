@@ -457,6 +457,19 @@ router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), async (req, res)
                 : tags.split(",").map(t => t.trim())
             : [];
 
+        let cleanImages = images;
+        if (images && Array.isArray(images)) {
+            cleanImages = images.map(img => {
+                if (img && typeof img === 'object') {
+                    // Return only url and publicId, remove _id
+                    const { url, publicId } = img;
+                    return { url, publicId: publicId || null };
+                }
+                // If it's already a string, keep it
+                return img;
+            });
+        }
+
         // Create update data - use images directly like POST route
         const updateData = {
             name,
@@ -464,7 +477,7 @@ router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), async (req, res)
             price,
             stock,
             category,
-            images: images,
+            images: cleanImages,
             tags: tagsArray,
             salePrice,
             featured: featured || false,
