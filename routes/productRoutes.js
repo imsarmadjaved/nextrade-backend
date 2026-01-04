@@ -436,41 +436,58 @@ router.get("/seller/:sellerId/public-profile", async (req, res) => {
 router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), async (req, res) => {
     try {
         const { name, description, price, stock, category, tags, salePrice, featured, status, images } = req.body;
+        const sellerId = req.user.id;
 
         console.log("=== PRODUCT UPDATE DEBUG ===");
-        console.log("Images received for update:", images);
-        console.log("Type of images:", typeof images);
+        console.log("Images received:", images);
         console.log("=== END DEBUG ===");
 
-        if (category) {
-            const categoryExists = await Category.findById(category);
-            if (!categoryExists) return res.status(400).json({ message: "Invalid category" });
+        // Validate required fields
+        if (!name || !description || !price || !stock || !category) {
+            return res.status(400).json({ message: "Missing required fields" });
         }
 
+        const categoryExists = await Category.findById(category);
+        if (!categoryExists) return res.status(400).json({ message: "Invalid category" });
+
+        // Process tags same as POST route
+        const tagsArray = tags
+            ? Array.isArray(tags)
+                ? tags
+                : tags.split(",").map(t => t.trim())
+            : [];
+
+        // Create update data - use images directly like POST route
         const updateData = {
             name,
             description,
             price,
             stock,
             category,
-            tags,
+            images: images,
+            tags: tagsArray,
             salePrice,
-            featured,
-            status
+            featured: featured || false,
+            status: status || "active",
         };
 
-        // Only update images if provided
-        if (images && Array.isArray(images) && images.length > 0) {
-            updateData.images = normalizeImages(images);
-        }
+        console.log("Update data:", updateData);
 
-        const product = await Product.findByIdAndUpdate(req.params.id, updateData, { new: true });
+        const product = await Product.findByIdAndUpdate(
+            req.params.id,
+            updateData,
+            { new: true }
+        );
+
         if (!product) return res.status(404).json({ message: "Product not found" });
 
-        res.json({ message: "Product updated successfully", product });
+        res.json({
+            message: "Product updated successfully",
+            product
+        });
     } catch (err) {
+        console.error("PRODUCT UPDATE ERROR:", err);
         res.status(500).json({ message: "Server error", error: err.message });
     }
 });
-
 module.exports = router;
