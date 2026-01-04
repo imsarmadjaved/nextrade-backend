@@ -67,7 +67,7 @@ router.get("/", async (req, res) => {
         // Format categories with proper image URLs
         const formattedCategories = categories.map(category => ({
             ...category.toObject(),
-            imageUrl: category.image?.url || ""
+            image: category.image?.url || ""
         }));
 
         res.json(formattedCategories);
@@ -98,7 +98,7 @@ router.get("/with-counts", async (req, res) => {
                         _id: category._id,
                         name: category.name,
                         description: category.description,
-                        image: category.image,
+                        image: category.image?.url || "",
                         icon: category.icon,
                         isFeatured: category.isFeatured,
                         productCount: productCount,
@@ -158,10 +158,18 @@ router.get("/with-product-counts", async (req, res) => {
 router.get("/featured/categories", async (req, res) => {
     try {
         const featuredCategories = await Category.find({ isFeatured: true });
-        res.json(featuredCategories);
+
+        const formatted = featuredCategories.map(cat => ({
+            ...cat.toObject(),
+            image: cat.image?.url || ""
+        }));
+
+        res.json(formatted);
     } catch (err) {
-        console.error("Error fetching featured categories:", err);
-        res.status(500).json({ message: "Server error", error: err.message });
+        res.status(500).json({
+            message: "Server error",
+            error: err.message
+        });
     }
 });
 
@@ -331,11 +339,9 @@ router.get("/featured/with-stats", async (req, res) => {
                 bulkProducts: 0
             };
 
-            let imageUrl = "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&h=300&fit=crop";
-            if (category.image) {
-                // Use Cloudinary URL directly
-                imageUrl = category.image;
-            }
+            let imageUrl =
+                category.image?.url ||
+                "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&h=300&fit=crop";
 
             return {
                 _id: category._id,
