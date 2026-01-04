@@ -53,7 +53,7 @@ router.get("/me", verifyToken, async (req, res) => {
             phone: profile.phone || "",
             city: profile.city || "",
             address: profile.address || "",
-            pprofileImage: profile.profileImage
+            profileImage: profile.profileImage
                 ? typeof profile.profileImage === "string"
                     ? profile.profileImage
                     : profile.profileImage.url || ""
