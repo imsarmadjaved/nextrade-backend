@@ -1,20 +1,25 @@
 const express = require("express");
-const Profile = require("../models/Profile.js");
+const Profile = require("../models/Profile");
 const User = require("../models/User");
 const { uploadSingle } = require("../middleware/upload");
-const router = express.Router();
 const verifyToken = require("../middleware/authMiddleware");
-const roleCheck = require("../middleware/roleMiddleware");
+const cloudinary = require("cloudinary").v2;
 
-// Get current user's profile
+const router = express.Router();
+
+/* Get current user's profile */
 router.get("/me", verifyToken, async (req, res) => {
     try {
         const userId = req.user.id;
-        const user = await User.findById(userId).select("role name email storeName storeDescription createdAt");
+
+        const user = await User.findById(userId).select(
+            "role name email storeName storeDescription createdAt"
+        );
+
         const profile = await Profile.findOne({ user: userId });
 
         if (!profile) {
-            const emptyProfile = {
+            const baseProfile = {
                 name: user.name,
                 email: user.email,
                 phone: "",
@@ -26,11 +31,11 @@ router.get("/me", verifyToken, async (req, res) => {
                 userRole: user.role,
                 isProfileComplete: false
             };
+
             if (["seller_pending", "seller_approved"].includes(user.role)) {
-                Object.assign(emptyProfile, {
+                Object.assign(baseProfile, {
                     businessType: "",
                     businessAddress: "",
-                    city: "",
                     cnicNumber: "",
                     businessPhone: "",
                     yearsInBusiness: 0,
@@ -38,16 +43,17 @@ router.get("/me", verifyToken, async (req, res) => {
                     businessDescription: ""
                 });
             }
-            return res.status(200).json(emptyProfile);
+
+            return res.status(200).json(baseProfile);
         }
 
-        const profileData = {
+        const response = {
             name: user.name,
             email: user.email,
             phone: profile.phone || "",
             city: profile.city || "",
             address: profile.address || "",
-            profileImage: profile.profileImage || "",
+            profileImage: profile.profileImage?.url || "",
             shopName: profile.shopName || user.storeName || "",
             shopDescription: profile.shopDescription || user.storeDescription || "",
             userRole: user.role,
@@ -55,7 +61,7 @@ router.get("/me", verifyToken, async (req, res) => {
         };
 
         if (["seller_pending", "seller_approved"].includes(user.role)) {
-            Object.assign(profileData, {
+            Object.assign(response, {
                 businessType: profile.businessType || "",
                 businessAddress: profile.businessAddress || "",
                 cnicNumber: profile.cnicNumber || "",
@@ -66,32 +72,40 @@ router.get("/me", verifyToken, async (req, res) => {
             });
         }
 
-        res.status(200).json(profileData);
+        res.status(200).json(response);
     } catch (err) {
         res.status(500).json({ message: "Server error", error: err.message });
     }
 });
 
-// Update profile
+/* Update profile (non-image fields) */
 router.put("/me", verifyToken, async (req, res) => {
     try {
         const userId = req.user.id;
         const user = await User.findById(userId).select("role");
 
         let updateData = { ...req.body };
-        const allowedBasicFields = ["phone", "city", "address", "profileImage", "shopName", "shopDescription"];
 
         if (!["seller_pending", "seller_approved"].includes(user.role)) {
-            const filteredData = {};
-            allowedBasicFields.forEach(field => {
-                if (updateData[field] !== undefined) filteredData[field] = updateData[field];
-            });
-            updateData = filteredData;
+            const allowedFields = [
+                "phone",
+                "city",
+                "address",
+                "shopName",
+                "shopDescription"
+            ];
+
+            updateData = Object.fromEntries(
+                Object.entries(updateData).filter(([key]) =>
+                    allowedFields.includes(key)
+                )
+            );
         } else {
-            if (!updateData.city && updateData.businessAddress) {
-                updateData.city = updateData.businessAddress.split(',')[0] || "";
-            }
-            if (updateData.businessType && updateData.cnicNumber && updateData.city) {
+            if (
+                updateData.businessType &&
+                updateData.cnicNumber &&
+                updateData.city
+            ) {
                 updateData.isProfileComplete = true;
             }
         }
@@ -105,19 +119,24 @@ router.put("/me", verifyToken, async (req, res) => {
                 { new: true, runValidators: true }
             );
         } else {
-            profile = new Profile({ user: userId, ...updateData });
-            await profile.save();
+            profile = await Profile.create({ user: userId, ...updateData });
         }
 
-        if (updateData.shopName && ["seller_pending", "seller_approved"].includes(user.role)) {
+        if (
+            updateData.shopName &&
+            ["seller_pending", "seller_approved"].includes(user.role)
+        ) {
             await User.findByIdAndUpdate(userId, {
                 storeName: updateData.shopName,
                 storeDescription: updateData.shopDescription || ""
             });
         }
 
-        const userUpdated = await User.findById(userId).select("name email role storeName storeDescription");
-        const responseData = {
+        const userUpdated = await User.findById(userId).select(
+            "name email role storeName storeDescription"
+        );
+
+        res.status(200).json({
             message: "Profile updated successfully",
             profile: {
                 name: userUpdated.name,
@@ -125,77 +144,88 @@ router.put("/me", verifyToken, async (req, res) => {
                 phone: profile.phone || "",
                 city: profile.city || "",
                 address: profile.address || "",
-                profileImage: profile.profileImage || "",
+                profileImage: profile.profileImage?.url || "",
                 shopName: profile.shopName || userUpdated.storeName || "",
-                shopDescription: profile.shopDescription || userUpdated.storeDescription || "",
+                shopDescription:
+                    profile.shopDescription || userUpdated.storeDescription || "",
                 userRole: userUpdated.role,
                 isProfileComplete: profile.isProfileComplete || false
             }
-        };
-
-        if (["seller_pending", "seller_approved"].includes(userUpdated.role)) {
-            Object.assign(responseData.profile, {
-                businessType: profile.businessType || "",
-                businessAddress: profile.businessAddress || "",
-                cnicNumber: profile.cnicNumber || "",
-                businessPhone: profile.businessPhone || "",
-                yearsInBusiness: profile.yearsInBusiness || 0,
-                mainProducts: profile.mainProducts || [],
-                businessDescription: profile.businessDescription || ""
-            });
-        }
-
-        res.status(200).json(responseData);
-    } catch (err) {
-        res.status(500).json({ message: "Server error", error: err.message });
-    }
-});
-
-// Upload profile image (Cloudinary via upload middleware)
-router.post("/image", verifyToken, uploadSingle("image"), async (req, res) => {
-    try {
-        const userId = req.user.id;
-        if (!req.file) return res.status(400).json({ message: "No image file provided" });
-
-        let profile = await Profile.findOne({ user: userId });
-        if (!profile) profile = new Profile({ user: userId });
-
-        profile.profileImage = req.file.path;
-        await profile.save();
-
-        res.json({
-            message: "Profile image uploaded successfully",
-            imageUrl: req.file.path,
-            profile: { profileImage: req.file.path }
         });
     } catch (err) {
         res.status(500).json({ message: "Server error", error: err.message });
     }
 });
 
-// Complete business profile (pending sellers)
+/* Upload / update profile image */
+router.post(
+    "/image",
+    verifyToken,
+    uploadSingle("image", "profiles"),
+    async (req, res) => {
+        try {
+            const userId = req.user.id;
+
+            let profile = await Profile.findOne({ user: userId });
+            if (!profile) profile = new Profile({ user: userId });
+
+            if (profile.profileImage?.publicId) {
+                await cloudinary.uploader.destroy(
+                    profile.profileImage.publicId
+                );
+            }
+
+            profile.profileImage = {
+                url: req.file.cloudinary.url,
+                publicId: req.file.cloudinary.publicId
+            };
+
+            await profile.save();
+
+            res.json({
+                message: "Profile image uploaded successfully",
+                imageUrl: profile.profileImage.url
+            });
+        } catch (err) {
+            res.status(500).json({ message: "Server error", error: err.message });
+        }
+    }
+);
+
+/* Complete business profile (pending sellers only) */
 router.post("/business-profile", verifyToken, async (req, res) => {
     try {
         const userId = req.user.id;
-        const {
-            phone, address, businessType, businessAddress, city, cnicNumber,
-            businessPhone, yearsInBusiness, mainProducts, businessDescription,
-            shopName, shopDescription
-        } = req.body;
-
         const user = await User.findById(userId);
-        if (user.role !== "seller_pending") {
-            return res.status(400).json({ message: "Complete business profile is only for pending sellers" });
-        }
 
-        if (!businessType || !cnicNumber || !city) {
+        if (user.role !== "seller_pending") {
             return res.status(400).json({
-                message: "Business type, CNIC number, and city are required for verification"
+                message: "Only pending sellers can complete business profile"
             });
         }
 
-        let profile = await Profile.findOne({ user: userId });
-        const businessProfileData = {
+        const {
+            phone,
+            address,
+            businessType,
+            businessAddress,
+            city,
+            cnicNumber,
+            businessPhone,
+            yearsInBusiness,
+            mainProducts,
+            businessDescription,
+            shopName,
+            shopDescription
+        } = req.body;
+
+        if (!businessType || !cnicNumber || !city) {
+            return res.status(400).json({
+                message: "Business type, CNIC number, and city are required"
+            });
+        }
+
+        const data = {
             phone: phone || "",
             address: address || "",
             businessType,
@@ -204,23 +234,20 @@ router.post("/business-profile", verifyToken, async (req, res) => {
             cnicNumber,
             businessPhone: businessPhone || phone,
             yearsInBusiness: yearsInBusiness || 0,
-            mainProducts: Array.isArray(mainProducts) ? mainProducts : [mainProducts],
+            mainProducts: Array.isArray(mainProducts)
+                ? mainProducts
+                : [mainProducts],
             businessDescription: businessDescription || "",
             shopName: shopName || "",
             shopDescription: shopDescription || "",
             isProfileComplete: true
         };
 
-        if (profile) {
-            profile = await Profile.findOneAndUpdate(
-                { user: userId },
-                { $set: businessProfileData },
-                { new: true, runValidators: true }
-            );
-        } else {
-            profile = new Profile({ user: userId, ...businessProfileData });
-            await profile.save();
-        }
+        const profile = await Profile.findOneAndUpdate(
+            { user: userId },
+            { $set: data },
+            { new: true, upsert: true, runValidators: true }
+        );
 
         if (shopName) {
             await User.findByIdAndUpdate(userId, {
@@ -229,11 +256,10 @@ router.post("/business-profile", verifyToken, async (req, res) => {
             });
         }
 
-        const userUpdated = await User.findById(userId).select("name email storeName storeDescription role");
-
         res.status(200).json({
-            message: "Business profile completed successfully! Admin will review your application.",
-            profile: { ...profile.toObject(), userRole: userUpdated.role }
+            message:
+                "Business profile completed successfully. Admin review pending.",
+            profile
         });
     } catch (err) {
         res.status(500).json({ message: "Server error", error: err.message });

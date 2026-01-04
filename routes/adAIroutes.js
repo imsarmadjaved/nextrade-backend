@@ -186,7 +186,7 @@ router.post("/recommend_ads/:userId", verifyToken, async (req, res) => {
             title: ad.title || "",
             description: ad.description || "",
             tags: ad.tags || [],
-            category: ad.category ? ad.category.toString() : "",
+            category: ad.targetCategory ? ad.targetCategory.toString() : "",
             targetAudience: ad.targetAudience || "",
             image: ad.image || "",
             createdAt: ad.createdAt,

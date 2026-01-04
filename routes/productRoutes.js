@@ -4,9 +4,12 @@ const Product = require("../models/Product");
 const Category = require("../models/Category");
 const Review = require("../models/Review");
 const User = require("../models/User");
+const Profile = require("../models/Profile");
 const { uploadSingle, uploadMultiple } = require("../middleware/upload");
 const verifyToken = require("../middleware/authMiddleware");
 const roleCheck = require("../middleware/roleMiddleware");
+const cloudinary = require("cloudinary").v2;
+
 const router = express.Router();
 
 // Middleware to check if user is approved seller
@@ -16,7 +19,7 @@ const isApprovedSeller = async (req, res, next) => {
         if (user.role === "admin") return next();
         if (user.role !== "seller_approved") {
             return res.status(403).json({
-                message: "Access denied. Please complete seller verification to add products.",
+                message: "Access denied. Complete seller verification to add products."
             });
         }
         next();
@@ -25,8 +28,8 @@ const isApprovedSeller = async (req, res, next) => {
     }
 };
 
-// Add Product with image upload
-router.post("/", verifyToken, isApprovedSeller, uploadMultiple("image"), async (req, res) => {
+// Add Product with multiple image upload
+router.post("/", verifyToken, isApprovedSeller, uploadMultiple("images", "products"), async (req, res) => {
     try {
         const { name, description, price, stock, category, tags, salePrice, featured } = req.body;
         const sellerId = req.user.id;
@@ -34,7 +37,7 @@ router.post("/", verifyToken, isApprovedSeller, uploadMultiple("image"), async (
         const categoryExists = await Category.findById(category);
         if (!categoryExists) return res.status(400).json({ message: "Invalid category" });
 
-        const images = req.files ? req.files.map(file => file.path) : [];
+        const images = req.cloudinaryFiles || [];
 
         const product = new Product({
             name,
@@ -51,7 +54,6 @@ router.post("/", verifyToken, isApprovedSeller, uploadMultiple("image"), async (
 
         await product.save();
 
-        // Create auto 1-star review
         const defaultReview = new Review({
             product: product._id,
             user: sellerId,
@@ -67,15 +69,14 @@ router.post("/", verifyToken, isApprovedSeller, uploadMultiple("image"), async (
 
         res.status(201).json({
             message: "Product created successfully",
-            product,
+            product
         });
     } catch (err) {
-        console.error("Product creation error:", err);
         res.status(500).json({ message: "Server error", error: err.message });
     }
 });
 
-// Get All Products with filters
+// Get all products with filters
 router.get("/", async (req, res) => {
     try {
         const { category, search, minPrice, maxPrice, status, featured } = req.query;
@@ -124,7 +125,7 @@ router.get("/category/:id", async (req, res) => {
     }
 });
 
-// Get Single Product by ID
+// Get single product by ID
 router.get("/:id", async (req, res) => {
     try {
         const product = await Product.findById(req.params.id)
@@ -139,7 +140,7 @@ router.get("/:id", async (req, res) => {
     }
 });
 
-// Get seller's products only
+// Get seller's products
 router.get("/seller/products", verifyToken, roleCheck(["seller", "admin"]), async (req, res) => {
     try {
         const sellerId = req.user.id;
@@ -154,7 +155,7 @@ router.get("/seller/products", verifyToken, roleCheck(["seller", "admin"]), asyn
     }
 });
 
-// Get products
+// Admin: paginated products
 router.get("/admin/products", verifyToken, roleCheck(["admin"]), async (req, res) => {
     try {
         const {
@@ -382,8 +383,8 @@ router.get("/seller/:sellerId/public-profile", async (req, res) => {
     }
 });
 
-// Update Product with optional image upload
-router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), uploadMultiple("images"), async (req, res) => {
+// Update product with optional image upload
+router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), uploadMultiple("images", "products"), async (req, res) => {
     try {
         const { name, description, price, stock, category, tags, salePrice, featured, status } = req.body;
 
@@ -393,8 +394,8 @@ router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), uploadMultiple("
         }
 
         let images;
-        if (req.files && req.files.length > 0) {
-            images = req.files.map(file => file.path);
+        if (req.cloudinaryFiles && req.cloudinaryFiles.length > 0) {
+            images = req.cloudinaryFiles;
         }
 
         const updateData = { name, description, price, stock, category, tags, salePrice, featured, status };
@@ -405,7 +406,6 @@ router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), uploadMultiple("
 
         res.json({ message: "Product updated successfully", product });
     } catch (err) {
-        console.error("Product update error:", err);
         res.status(500).json({ message: "Server error", error: err.message });
     }
 });

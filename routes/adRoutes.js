@@ -491,7 +491,7 @@ router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), async (req, res)
                 });
             }
 
-            if (ad.payment.status !== "completed") {
+            if (!ad.payment || ad.payment.status !== "completed") {
                 return res.status(400).json({
                     message: `Cannot activate ad. Payment status is ${ad.payment.status}. Payment must be completed.`
                 });
@@ -555,7 +555,7 @@ router.post("/:id/impression", async (req, res) => {
 
             // Calculate CTR
             if (ad.impressions > 0 && ad.clicks > 0) {
-                ad.ctr = (ad.clicks / ad.impressions) * 100;
+                ad.ctr = ad.impressions > 0 ? (ad.clicks / ad.impressions) * 100 : 0;
             } else {
                 ad.ctr = 0;
             }
