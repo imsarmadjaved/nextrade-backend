@@ -440,6 +440,68 @@ router.get("/:id", async (req, res) => {
     }
 });
 
+// Update ad status (admin only)
+router.put("/:id/status", verifyToken, roleCheck(["admin"]), async (req, res) => {
+    try {
+        const { status, rejectionReason } = req.body;
+        const adId = req.params.id;
+
+        // Validate status
+        const validStatuses = ["pending", "approved", "rejected"];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({ message: "Invalid status value" });
+        }
+
+        const ad = await Ad.findById(adId).populate('seller', 'name email');
+
+        if (!ad) {
+            return res.status(404).json({ message: "Ad not found" });
+        }
+
+        // Store old status for comparison
+        const oldStatus = ad.status;
+
+        // Update status
+        ad.status = status;
+        ad.updatedAt = new Date();
+
+        // Handle rejected ads
+        if (status === "rejected") {
+            ad.rejectionReason = rejectionReason || "Does not meet our advertising guidelines";
+            ad.isActive = false;
+            ad.rejectedAt = new Date();
+
+            // Send rejection email
+            await sendAdRejectionEmail(ad, ad.rejectionReason, false);
+        }
+
+        // Handle approved ads
+        if (status === "approved") {
+            ad.approvedAt = new Date();
+            ad.isActive = false; // Not active until payment is completed
+
+            // Send approval email with payment instructions
+            await sendAdApprovalEmail(ad);
+        }
+
+        await ad.save();
+
+        // Return populated ad
+        const updatedAd = await Ad.findById(adId)
+            .populate('seller', 'name email')
+            .populate('payment');
+
+        res.json({
+            message: `Ad status updated to ${status}`,
+            ad: updatedAd,
+            oldStatus,
+            newStatus: status
+        });
+    } catch (err) {
+        res.status(500).json({ message: "Server error", error: err.message });
+    }
+});
+
 // Update ads
 router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), async (req, res) => {
     try {
@@ -542,67 +604,7 @@ router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), async (req, res)
     }
 });
 
-// Update ad status (admin only)
-router.put("/:id/status", verifyToken, roleCheck(["admin"]), async (req, res) => {
-    try {
-        const { status, rejectionReason } = req.body;
-        const adId = req.params.id;
 
-        // Validate status
-        const validStatuses = ["pending", "approved", "rejected"];
-        if (!validStatuses.includes(status)) {
-            return res.status(400).json({ message: "Invalid status value" });
-        }
-
-        const ad = await Ad.findById(adId).populate('seller', 'name email');
-
-        if (!ad) {
-            return res.status(404).json({ message: "Ad not found" });
-        }
-
-        // Store old status for comparison
-        const oldStatus = ad.status;
-
-        // Update status
-        ad.status = status;
-        ad.updatedAt = new Date();
-
-        // Handle rejected ads
-        if (status === "rejected") {
-            ad.rejectionReason = rejectionReason || "Does not meet our advertising guidelines";
-            ad.isActive = false;
-            ad.rejectedAt = new Date();
-
-            // Send rejection email
-            await sendAdRejectionEmail(ad, ad.rejectionReason, false);
-        }
-
-        // Handle approved ads
-        if (status === "approved") {
-            ad.approvedAt = new Date();
-            ad.isActive = false; // Not active until payment is completed
-
-            // Send approval email with payment instructions
-            await sendAdApprovalEmail(ad);
-        }
-
-        await ad.save();
-
-        // Return populated ad
-        const updatedAd = await Ad.findById(adId)
-            .populate('seller', 'name email')
-            .populate('payment');
-
-        res.json({
-            message: `Ad status updated to ${status}`,
-            ad: updatedAd,
-            oldStatus,
-            newStatus: status
-        });
-    } catch (err) {
-        res.status(500).json({ message: "Server error", error: err.message });
-    }
-});
 
 
 // Track ad impression
