@@ -26,22 +26,32 @@ const uploadRoutes = require("./routes/uploadRoutes");
 dotenv.config();
 const app = express();
 
-// Middleware
-app.use(cors({
-    origin: "https://nextrade-frontend.vercel.app",
+// CORS configuration
+const corsOptions = {
+    origin: process.env.CLIENT_URL,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization", "User-Fingerprint"],
     credentials: true
-}));
+};
+
+// Log CORS origin for debugging
+console.log("CORS Origin:", process.env.CLIENT_URL);
+
+app.use(cors(corsOptions));
 app.use(express.json()); // Parse incoming JSON
 
 // Health check
 app.get("/health", (req, res) => {
-    res.status(200).json({ status: "ok", timestamp: new Date() });
+    res.status(200).json({
+        status: "ok",
+        timestamp: new Date(),
+        environment: process.env.NODE_ENV || "development",
+        clientUrl: process.env.CLIENT_URL
+    });
 });
+
 // Connect to DB
 connectDB();
-
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -66,11 +76,14 @@ app.use("/api/upload", uploadRoutes);
 
 // Test route
 app.get("/", (req, res) => {
-    res.send("API is running...");
+    res.send(`API is running... Server URL: ${process.env.SERVER_URL}`);
 });
 
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+    console.log(`Client URL: ${process.env.CLIENT_URL}`);
+    console.log(`Server URL: ${process.env.SERVER_URL}`);
 });

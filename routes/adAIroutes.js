@@ -4,10 +4,11 @@ const axios = require("axios");
 const Advertisement = require("../models/ad");
 const UserActivity = require("../models/userActivity");
 const verifyToken = require("../middleware/authMiddleware");
-const roleCheck = require("../middleware/roleMiddleware");
+
+// URL for the external AI recommendation service
 const AI_URL = "https://nextrade-ad-ai-service-8fe5.up.railway.app/";
 
-// AI service check
+// Check if AI service is responsive
 const isAdAIServiceAvailable = async () => {
     try {
         const response = await axios.get(`${AI_URL}/health`, { timeout: 5000 });
@@ -18,7 +19,7 @@ const isAdAIServiceAvailable = async () => {
     }
 };
 
-// user profiling for AI
+// Build user profile data to send to AI service
 const buildAIUserProfile = (activity) => {
     if (!activity) return { interests: "", activities: [] };
 
@@ -27,7 +28,7 @@ const buildAIUserProfile = (activity) => {
 
     const interests = [];
 
-    // From purchased products (highest weight)
+    // Add purchased products (give them double weight)
     purchasedProducts.forEach(product => {
         if (product.title) interests.push(product.title, product.title);
         if (product.description) interests.push(product.description);
@@ -35,7 +36,7 @@ const buildAIUserProfile = (activity) => {
         if (product.category) interests.push(product.category, product.category);
     });
 
-    // From viewed products
+    // Add viewed products (single weight)
     viewedProducts.forEach(product => {
         if (product.title) interests.push(product.title);
         if (product.description) interests.push(product.description);
@@ -43,6 +44,7 @@ const buildAIUserProfile = (activity) => {
         if (product.category) interests.push(product.category);
     });
 
+    // Format activities for AI service
     const userActivities = [...purchasedProducts, ...viewedProducts].map(product => ({
         title: product.title || "",
         description: product.description || "",
@@ -56,19 +58,21 @@ const buildAIUserProfile = (activity) => {
     };
 };
 
-// fallback function
+// Fallback recommendation system when AI is unavailable
 const getEnhancedFallbackAds = async (userId, limit = 6) => {
     try {
+        // Get user's activity to understand preferences
         const activity = await UserActivity.findOne({ user: userId })
             .populate("viewedProducts purchasedProducts", "category");
 
-        // Analyze user behavior for fallback
+        // Analyze user's preferred categories based on past activity
         let preferredCategories = [];
         if (activity) {
             const purchasedProducts = activity.purchasedProducts || [];
             const viewedProducts = activity.viewedProducts || [];
             const allProducts = [...purchasedProducts, ...viewedProducts];
 
+            // Count how many times each category appears
             const categoryCounter = {};
             allProducts.forEach(product => {
                 if (product.category) {
@@ -77,6 +81,7 @@ const getEnhancedFallbackAds = async (userId, limit = 6) => {
                 }
             });
 
+            // Get top 5 most frequent categories
             preferredCategories = Object.entries(categoryCounter)
                 .sort(([, a], [, b]) => b - a)
                 .slice(0, 5)
@@ -85,7 +90,7 @@ const getEnhancedFallbackAds = async (userId, limit = 6) => {
 
         let recommendedAds = [];
 
-        // Strategy 1: Category-based recommendations
+        // Strategy 1: Show ads from user's preferred categories
         if (preferredCategories.length > 0) {
             recommendedAds = await Advertisement.find({
                 status: "approved",
@@ -99,7 +104,7 @@ const getEnhancedFallbackAds = async (userId, limit = 6) => {
                 });
         }
 
-        // Strategy 2: If not enough, fill with recent ads
+        // Strategy 2: If not enough category-based ads, add recent popular ads
         if (recommendedAds.length < limit) {
             const additionalAds = await Advertisement.find({
                 status: "approved",
@@ -112,7 +117,7 @@ const getEnhancedFallbackAds = async (userId, limit = 6) => {
             recommendedAds = [...recommendedAds, ...additionalAds];
         }
 
-        // Strategy 3: Ultimate fallback
+        // Strategy 3: Last resort - any active ads
         if (recommendedAds.length === 0) {
             recommendedAds = await Advertisement.find({
                 status: "approved",
@@ -126,7 +131,7 @@ const getEnhancedFallbackAds = async (userId, limit = 6) => {
 
     } catch (error) {
         console.error("Enhanced fallback ad error:", error);
-        // Basic fallback
+        // Basic fallback if everything else fails
         return await Advertisement.find({
             status: "approved",
             isActive: true
@@ -136,17 +141,19 @@ const getEnhancedFallbackAds = async (userId, limit = 6) => {
     }
 };
 
-// AI Ad Recommendations
+// Main route: Get AI-powered ad recommendations
+// POST /api/ads/recommend_ads/:userId
 router.post("/recommend_ads/:userId", verifyToken, async (req, res) => {
     try {
         const userId = req.params.userId;
 
-        // Get active ads
+        // Get all active ads from database
         const ads = await Advertisement.find({
             status: "approved",
             isActive: true
         });
 
+        // If no ads available at all, use fallback
         if (ads.length === 0) {
             const fallbackAds = await getEnhancedFallbackAds(userId);
             return res.json({
@@ -157,17 +164,17 @@ router.post("/recommend_ads/:userId", verifyToken, async (req, res) => {
             });
         }
 
-        // Get user profile for AI
+        // Get user's activity data to build profile
         const activity = await UserActivity.findOne({ user: userId })
             .populate("viewedProducts purchasedProducts", "title description tags category");
 
         const userProfile = buildAIUserProfile(activity);
 
-        // Check AI service and user data conditions
+        // Decide whether to use AI or fallback
         const aiAvailable = await isAdAIServiceAvailable();
         const hasSufficientData = userProfile.activities.length > 0;
 
-        // Use fallback if AI unavailable or insufficient data
+        // Use fallback if AI is down OR user has no activity data
         if (!aiAvailable || !hasSufficientData) {
             console.log("Using fallback - AI unavailable or insufficient user data");
             const fallbackAds = await getEnhancedFallbackAds(userId);
@@ -180,7 +187,7 @@ router.post("/recommend_ads/:userId", verifyToken, async (req, res) => {
             });
         }
 
-        // Prepare AI payload
+        // Prepare data for AI service
         const adPayload = ads.map(ad => ({
             _id: ad._id.toString(),
             title: ad.title || "",
@@ -193,7 +200,7 @@ router.post("/recommend_ads/:userId", verifyToken, async (req, res) => {
             totalCost: ad.totalCost || 0
         }));
 
-        // Call AI service
+        // Call external AI service for recommendations
         const response = await axios.post(`${AI_URL}/recommend_ads`, {
             ads: adPayload,
             user_activities: userProfile.activities,
@@ -211,12 +218,12 @@ router.post("/recommend_ads/:userId", verifyToken, async (req, res) => {
             });
         }
 
-        // If AI returns insufficient results, supplement with fallback
+        // If AI returns too few results, supplement with fallback ads
         if (recommendedAds.length < 3) {
             console.log("AI returned insufficient results, supplementing with fallback");
             const supplementalAds = await getEnhancedFallbackAds(userId, 6 - recommendedAds.length);
 
-            // Combine and remove duplicates
+            // Combine results, removing any duplicates
             const allAds = [...recommendedAds, ...supplementalAds];
             const uniqueAds = [];
             const seenIds = new Set();
@@ -245,7 +252,7 @@ router.post("/recommend_ads/:userId", verifyToken, async (req, res) => {
     } catch (error) {
         console.error("AI Ad Recommendation Error:", error.message);
 
-        // Use fallback on any error
+        // If ANY error occurs, use fallback system
         const fallbackAds = await getEnhancedFallbackAds(userId);
 
         res.json({
@@ -258,7 +265,8 @@ router.post("/recommend_ads/:userId", verifyToken, async (req, res) => {
     }
 });
 
-// Health check
+// Service health check endpoint
+// GET /api/ads/health
 router.get("/health", async (req, res) => {
     try {
         const aiAvailable = await isAdAIServiceAvailable();

@@ -7,7 +7,7 @@ const Ad = require("../models/ad");
 const sendEmail = require("../utils/sendEmail");
 const router = express.Router();
 
-// Add these email functions
+// Send Payment confirmation email
 const sendPaymentConfirmationEmail = async (ad) => {
     if (!ad || !ad.seller || !ad.seller.email) {
         console.error("Cannot send email: Missing ad or seller email");

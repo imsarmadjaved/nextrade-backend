@@ -28,23 +28,6 @@ const isApprovedSeller = async (req, res, next) => {
     }
 };
 
-const normalizeImages = (images) => {
-    if (!images) return [];
-    if (typeof images === "string") {
-        // Legacy single string => convert to array of objects
-        return [{ url: images, publicId: null }];
-    }
-    if (Array.isArray(images)) {
-        // Check if first item is string => convert to object array
-        if (images.length > 0 && typeof images[0] === "string") {
-            return images.map((img) => ({ url: img, publicId: null }));
-        }
-        return images;
-    }
-    return [];
-};
-
-
 router.post("/", verifyToken, isApprovedSeller, async (req, res) => {
     try {
         const { name, description, price, stock, category, tags, salePrice, featured, images } = req.body;
@@ -465,7 +448,6 @@ router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), async (req, res)
                     return {
                         url: img.url,
                         publicId: img.publicId || null
-                        // Don't include _id
                     };
                 }
                 // If it's a string

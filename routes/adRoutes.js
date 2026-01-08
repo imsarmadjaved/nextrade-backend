@@ -106,7 +106,7 @@ router.put("/:id/image",
                 publicId: req.file.cloudinary.publicId
             };
 
-            // Store old image for cleanup (optional)
+            // Store old image for cleanup
             const oldImage = ad.images && ad.images.length > 0 ? ad.images[0] : null;
 
             // Update ad with new single image in array
@@ -114,11 +114,6 @@ router.put("/:id/image",
             ad.updatedAt = new Date();
 
             await ad.save();
-
-            // Optional: Delete old image from Cloudinary
-            // if (oldImage && oldImage.publicId) {
-            //     cloudinary.uploader.destroy(oldImage.publicId);
-            // }
 
             res.json({
                 message: "Ad image updated successfully",
@@ -282,68 +277,6 @@ const sendAdRejectionEmail = async (ad, rejectionReason, isPaymentRejection = fa
     }
 };
 
-// Payment confirmation email
-const sendPaymentConfirmationEmail = async (ad) => {
-    const emailHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                .header { background: #10B981; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }
-                .content { background: #f9f9f9; padding: 20px; border-radius: 0 0 10px 10px; }
-                .success-box { background: #D1FAE5; padding: 15px; border-radius: 5px; margin: 15px 0; text-align: center; }
-                .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1>Payment Received - Ad is Live!</h1>
-                </div>
-                <div class="content">
-                    <p>Hello <strong>${ad.seller.name}</strong>,</p>
-                    
-                    <div class="success-box">
-                        <h2>Your Ad is Now Active!</h2>
-                        <p>We have received your payment and your advertisement is now live on our platform.</p>
-                    </div>
-
-                    <h3>Ad Details:</h3>
-                    <ul>
-                        <li><strong>Ad Title:</strong> ${ad.title}</li>
-                        <li><strong>Duration:</strong> ${ad.duration} days</li>
-                        <li><strong>Start Date:</strong> ${new Date(ad.startDate).toLocaleDateString()}</li>
-                        <li><strong>End Date:</strong> ${new Date(ad.endDate).toLocaleDateString()}</li>
-                        <li><strong>Amount Paid:</strong> Rs ${ad.totalCost}</li>
-                    </ul>
-
-                    <p>You can track your ad performance from your seller dashboard.</p>
-                    
-                    <p>Thank you for choosing NexTrade!</p>
-                    
-                    <p>Best regards,<br>NexTrade Team</p>
-                </div>
-                <div class="footer">
-                    <p>This is an automated email. Please do not reply to this message.</p>
-                </div>
-            </div>
-        </body>
-        </html>
-    `;
-
-    try {
-        await sendEmail({
-            email: ad.seller.email,
-            subject: `Payment Confirmed - Your Ad "${ad.title}" is Live!`,
-            message: emailHtml
-        });
-    } catch (error) {
-        console.error("Failed to send payment confirmation email:", error);
-    }
-};
-
 // View ads (Approved and active)
 router.get("/:id/image", async (req, res) => {
     try {
@@ -384,7 +317,7 @@ router.get("/all", verifyToken, roleCheck(["admin"]), async (req, res) => {
         const ads = await Ad.find()
             .populate("seller", "name email")
             .populate("targetCategory", "name")
-            .populate("payment")  // Make sure this is included
+            .populate("payment")
             .sort({ createdAt: -1 });
 
         res.json(ads);
@@ -398,7 +331,7 @@ router.get("/seller/me", verifyToken, roleCheck(["seller"]), async (req, res) =>
     try {
         const ads = await Ad.find({ createdBy: req.user.id })
             .populate("seller", "name email")
-            .populate("payment")  // Add this line to populate payment
+            .populate("payment")
             .sort({ createdAt: -1 });
 
         res.json(ads);
@@ -543,7 +476,7 @@ router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), async (req, res)
             }
         }
 
-        // Handle image update - FIXED to match consistent format
+        // Handle image update
         if (image) {
             let imageArray = [];
 
@@ -603,9 +536,6 @@ router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), async (req, res)
         res.status(500).json({ message: "Server error", error: err.message });
     }
 });
-
-
-
 
 // Track ad impression
 router.post("/:id/impression", async (req, res) => {
@@ -727,7 +657,7 @@ router.post("/:id/click", async (req, res) => {
 router.get("/:id/analytics", verifyToken, roleCheck(["seller", "admin"]), async (req, res) => {
     try {
         const adId = req.params.id;
-        const { period = '7d' } = req.query; // 7d, 30d, all
+        const { period = '7d' } = req.query;
 
         const ad = await Ad.findById(adId);
         if (!ad) {

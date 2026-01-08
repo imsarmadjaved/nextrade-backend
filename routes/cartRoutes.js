@@ -1,7 +1,7 @@
 const express = require("express");
 const Cart = require("../models/Cart");
 const Product = require("../models/Product");
-const BulkPricingTier = require("../models/BulkPricingTier"); // ADD THIS
+const BulkPricingTier = require("../models/BulkPricingTier");
 const router = express.Router();
 const verifyToken = require("../middleware/authMiddleware");
 const roleCheck = require("../middleware/roleMiddleware");
@@ -216,7 +216,7 @@ router.get("/:userId", verifyToken, roleCheck(["buyer"]), async (req, res) => {
     }
 });
 
-// Update quantity - UPDATED WITH BULK PRICING
+// Update quantity
 router.put("/:userId/:productId", verifyToken, roleCheck(["buyer"]), async (req, res) => {
     try {
         const { userId, productId } = req.params;

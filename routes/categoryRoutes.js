@@ -123,7 +123,7 @@ router.get("/with-counts", async (req, res) => {
                     return {
                         ...category.toObject(),
                         productCount: 0,
-                        image: category.image?.url || "" // Ensure string URL
+                        image: category.image?.url || ""
                     };
                 }
             })

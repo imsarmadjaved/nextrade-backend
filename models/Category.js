@@ -12,7 +12,6 @@ const categorySchema = new mongoose.Schema(
             type: String,
             default: ""
         },
-        // Better structure for Cloudinary
         image: {
             url: {
                 type: String,

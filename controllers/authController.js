@@ -5,19 +5,21 @@ const User = require("../models/User");
 const Profile = require("../models/Profile");
 const sendEmail = require("../utils/sendEmail");
 
-// Register User
+// User Registration Controller
 const registerUser = async (req, res) => {
     try {
         const { name, email, password, role } = req.body;
 
+        // Check if user already exists
         const existingUser = await User.findOne({ email });
         if (existingUser) {
             return res.status(400).json({ message: "Email already registered" });
         }
 
+        // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Handle seller registration - set as pending
+        // Handle seller registration with pending status
         let userRole = role;
         let approvalStatus = "pending";
 
@@ -26,6 +28,7 @@ const registerUser = async (req, res) => {
             approvalStatus = "pending";
         }
 
+        // Create new user
         const newUser = new User({
             name,
             email,
@@ -37,7 +40,7 @@ const registerUser = async (req, res) => {
 
         await newUser.save();
 
-        // Create empty profile
+        // Create empty user profile
         const newProfile = new Profile({
             user: newUser._id
         });
@@ -59,7 +62,7 @@ const registerUser = async (req, res) => {
     }
 };
 
-// Apply to Become Seller
+// Apply to Become Seller Controller
 const applyAsSeller = async (req, res) => {
     try {
         const userId = req.user.id;
@@ -69,6 +72,7 @@ const applyAsSeller = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
+        // Validate user's current status
         if (user.role === "seller_pending") {
             return res.status(400).json({ message: "Seller application already pending" });
         }
@@ -77,7 +81,7 @@ const applyAsSeller = async (req, res) => {
             return res.status(400).json({ message: "You are already an approved seller" });
         }
 
-        // Update user to seller_pending
+        // Update user to pending seller status
         user.role = "seller_pending";
         user.approvalStatus = "pending";
         user.submittedAt = new Date();
@@ -101,7 +105,7 @@ const applyAsSeller = async (req, res) => {
     }
 };
 
-// Login User
+// User Login Controller
 const loginUser = async (req, res) => {
     const { email, password } = req.body;
 
@@ -111,17 +115,20 @@ const loginUser = async (req, res) => {
             return res.status(400).json({ message: "Invalid email or password" });
         }
 
+        // Check if account is blocked
         if (user.isBlocked) {
             return res.status(403).json({
                 message: "Your account has been blocked. Please contact administrator."
             });
         }
 
+        // Verify password
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             return res.status(400).json({ message: "Invalid email or password" });
         }
 
+        // Generate JWT token
         const token = jwt.sign(
             { id: user._id, role: user.role },
             process.env.JWT_SECRET,
@@ -146,12 +153,12 @@ const loginUser = async (req, res) => {
     }
 };
 
-//logOut
+// User Logout Controller
 const logout = async (req, res) => {
     try {
-
         const userId = req.user.id;
 
+        // Record logout timestamp
         await User.findByIdAndUpdate(userId, {
             lastLogoutAt: new Date()
         });
@@ -170,7 +177,7 @@ const logout = async (req, res) => {
     }
 };
 
-// Change Password
+// Change Password Controller
 const changePassword = async (req, res) => {
     try {
         const { currentPassword, newPassword } = req.body;
@@ -201,7 +208,7 @@ const changePassword = async (req, res) => {
             return res.status(400).json({ message: "Current password is incorrect" });
         }
 
-        // Check if new password is same as current password
+        // Check if new password is same as current
         const isSamePassword = await bcrypt.compare(newPassword, user.password);
         if (isSamePassword) {
             return res.status(400).json({
@@ -209,11 +216,10 @@ const changePassword = async (req, res) => {
             });
         }
 
-        // Hash new password
+        // Hash and update new password
         const saltRounds = 10;
         const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
 
-        // Update password
         user.password = hashedNewPassword;
         await user.save();
 
@@ -230,28 +236,27 @@ const changePassword = async (req, res) => {
     }
 };
 
-// Forgot Password (with email)
+// Forgot Password Controller
 const forgotPassword = async (req, res) => {
     try {
         const { email } = req.body;
 
-
         const user = await User.findOne({ email });
         if (!user) {
-
             return res.status(404).json({ message: "User not found" });
         }
 
-        // Generate reset token
+        // Generate password reset token (valid for 10 minutes)
         const resetToken = crypto.randomBytes(32).toString("hex");
 
         user.resetPasswordToken = resetToken;
-        user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 mins
+        user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
         await user.save();
 
-        // Point to frontend
+        // Construct reset URL
         const resetUrl = `${process.env.CLIENT_URL || 'https://nextrade-frontend.vercel.app'}/reset-password/${resetToken}`;
 
+        // Email template for password reset
         const message = `
       <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 10px;">
         <div style="text-align: center; margin-bottom: 20px;">
@@ -284,12 +289,12 @@ const forgotPassword = async (req, res) => {
       </div>
     `;
 
+        // Send password reset email
         await sendEmail({
             email: user.email,
             subject: "NexTrade Password Reset Request",
             message,
         });
-
 
         res.json({
             message: "Password reset link sent to your email address!",
@@ -299,11 +304,12 @@ const forgotPassword = async (req, res) => {
     }
 };
 
-// Reset Password
+// Reset Password Controller
 const resetPassword = async (req, res) => {
     try {
         const { token, password } = req.body;
 
+        // Find user with valid reset token
         const user = await User.findOne({
             resetPasswordToken: token,
             resetPasswordExpire: { $gt: Date.now() },
@@ -313,9 +319,11 @@ const resetPassword = async (req, res) => {
             return res.status(400).json({ message: "Invalid or expired token" });
         }
 
+        // Hash new password and update user
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(password, salt);
 
+        // Clear reset token fields
         user.resetPasswordToken = undefined;
         user.resetPasswordExpire = undefined;
 
@@ -327,11 +335,12 @@ const resetPassword = async (req, res) => {
     }
 };
 
-// Validate Reset Token
+// Validate Reset Token Controller
 const validateResetToken = async (req, res) => {
     try {
         const { token } = req.params;
 
+        // Check token validity
         const user = await User.findOne({
             resetPasswordToken: token,
             resetPasswordExpire: { $gt: Date.now() },
@@ -357,7 +366,7 @@ const validateResetToken = async (req, res) => {
     }
 };
 
-
+// Export all authentication controllers
 module.exports = {
     registerUser,
     loginUser,

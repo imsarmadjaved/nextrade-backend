@@ -6,6 +6,7 @@ const UserActivity = require("../models/userActivity");
 const router = express.Router();
 const verifyToken = require("../middleware/authMiddleware");
 const roleCheck = require("../middleware/roleMiddleware");
+
 const AI_URL = "https://nextrade-product-ai-service-b4c3.up.railway.app";
 
 // Helper functions
@@ -28,7 +29,7 @@ const formatProductForAI = (product) => ({
     price: product.price || 0
 });
 
-// Enhanced fallback functions (moved from fallback route)
+// fallback functions
 const getFallbackProductRecommendations = async (productId, limit = 6) => {
     try {
         const product = await Product.findById(productId);
@@ -76,7 +77,7 @@ const getEnhancedFallbackHomeRecommendations = async (userId, limit = 12) => {
     }
 };
 
-// AI Product Page Recommendation - WITH BUILT-IN FALLBACK
+// AI Product Page Recommendation
 router.get("/recommend/product/:productId", async (req, res) => {
     try {
         const { productId } = req.params;
@@ -164,7 +165,7 @@ router.get("/recommend/product/:productId", async (req, res) => {
     }
 });
 
-// AI Home Page Recommendation - WITH BUILT-IN FALLBACK
+// AI Home Page Recommendation 
 router.get("/recommend/home/:userId", verifyToken, roleCheck(["buyer"]), async (req, res) => {
     try {
         const { userId } = req.params;

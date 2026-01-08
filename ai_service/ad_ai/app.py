@@ -41,11 +41,13 @@ def recommend_ads():
     try:
         data = request.get_json()
         
+        # Add validation
+        if not data:
+            return jsonify({"error": "No data provided", "recommended_ads": []}), 400
+            
         ads = data.get("ads", [])
-        user_activities = data.get("user_activities", [])
-        user_interests = data.get("interests", "")
-        
-        if not ads:
+        # Add length check
+        if len(ads) == 0:
             return jsonify({"recommended_ads": []})
 
         # Build user profile from activities
@@ -99,12 +101,14 @@ def recommend_ads():
         return jsonify({
             "recommended_ads": recommendations,
             "strategy_used": "content_based",
-            "user_profile_terms": len(user_profile.split())
+            "user_profile_terms": len(user_profile.split()),
+            "total_ads_processed": len(ads),
+            "similarity_scores": df[['_id', 'similarity']].head(6).to_dict('records') 
         })
         
     except Exception as e:
         print(f"AI recommendation error: {e}")
-        return jsonify({"recommended_ads": []})
+        return jsonify({"error": str(e), "recommended_ads": []}), 500
 
 @app.route('/health', methods=['GET'])
 def health_check():

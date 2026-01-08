@@ -27,7 +27,7 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Beautiful HTML Email to Business (Support Team)
+    // Email to Business (Support Team)
     const businessEmailHTML = `
 <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px;">
   <div style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
@@ -96,7 +96,7 @@ router.post('/', async (req, res) => {
 </div>
     `;
 
-    // Beautiful HTML Confirmation Email to User
+    // Confirmation Email to User
     const userConfirmationHTML = `
 <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px;">
   <div style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
@@ -188,7 +188,7 @@ router.post('/', async (req, res) => {
 
 
 
-    // Send to your business
+    // Send to business
     await sendEmail({
       to: process.env.SUPPORT_EMAIL || process.env.EMAIL_USER,
       subject: `Support Request: ${subject}`,

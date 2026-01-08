@@ -7,7 +7,7 @@ const cloudinary = require("cloudinary").v2;
 
 const router = express.Router();
 
-/* Get current user's profile */
+// Get current user's profile
 router.get("/me", verifyToken, async (req, res) => {
     try {
         const userId = req.user.id;
@@ -82,7 +82,7 @@ router.get("/me", verifyToken, async (req, res) => {
     }
 });
 
-/* Get profile by user ID (Admin only) */
+// Get profile by user ID (Admin only) 
 router.get("/:userId", verifyToken, async (req, res) => {
     try {
         const { userId } = req.params;
@@ -146,7 +146,7 @@ router.get("/:userId", verifyToken, async (req, res) => {
 
 
 
-/* Update profile (non-image fields) */
+// Update profile (non-image fields) 
 router.put("/me", verifyToken, async (req, res) => {
     try {
         const userId = req.user.id;
@@ -225,7 +225,7 @@ router.put("/me", verifyToken, async (req, res) => {
     }
 });
 
-/* Upload / update profile image */
+// Upload / update profile image 
 router.post(
     "/image",
     verifyToken,
@@ -260,7 +260,7 @@ router.post(
     }
 );
 
-/* Complete business profile (pending sellers only) */
+// Complete business profile (pending sellers only) 
 router.post("/business-profile", verifyToken, async (req, res) => {
     try {
         const userId = req.user.id;

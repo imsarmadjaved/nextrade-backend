@@ -35,6 +35,7 @@ router.post(
     }
 );
 
+// Product  (Multiple)
 router.post(
     "/products/multiple",
     verifyToken,

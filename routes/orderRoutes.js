@@ -7,7 +7,9 @@ const verifyToken = require("../middleware/authMiddleware");
 const roleCheck = require("../middleware/roleMiddleware");
 const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
+// Calculate bulk pricing based on quantity tiers
 async function calculateBulkPrice(product, quantity) {
+    // If bulk pricing is not enabled, return regular price
     if (!product.bulkPricingEnabled || !product.bulkTiers || product.bulkTiers.length === 0) {
         return {
             unitPrice: product.price,
@@ -18,9 +20,11 @@ async function calculateBulkPrice(product, quantity) {
         };
     }
 
+    // Sort tiers by quantity (highest first) to find the best applicable tier
     const sortedTiers = [...product.bulkTiers].sort((a, b) => b.minQuantity - a.minQuantity);
     const applicableTier = sortedTiers.find(tier => quantity >= tier.minQuantity);
 
+    // If no applicable tier found, return regular price
     if (!applicableTier) {
         return {
             unitPrice: product.price,
@@ -33,6 +37,7 @@ async function calculateBulkPrice(product, quantity) {
 
     let finalUnitPrice, discountPerUnit;
 
+    // Calculate price based on discount type (percentage or fixed amount)
     if (applicableTier.discountType === "percentage") {
         const discountPercentage = applicableTier.discountValue / 100;
         finalUnitPrice = product.price * (1 - discountPercentage);
@@ -42,6 +47,7 @@ async function calculateBulkPrice(product, quantity) {
         finalUnitPrice = product.price - discountPerUnit;
     }
 
+    // Ensure price doesn't go below zero
     finalUnitPrice = Math.max(finalUnitPrice, 0);
 
     return {
@@ -53,11 +59,13 @@ async function calculateBulkPrice(product, quantity) {
     };
 }
 
+// Create a new order from cart
 router.post("/", verifyToken, roleCheck(["buyer"]), async (req, res) => {
     try {
         const { userId, shippingAddress, paymentMethod } = req.body;
         const cart = await Cart.findOne({ user: userId }).populate("products.product");
 
+        // Check if cart exists and has items
         if (!cart || cart.products.length === 0) {
             return res.status(400).json({ message: "Cart is empty" });
         }
@@ -65,6 +73,7 @@ router.post("/", verifyToken, roleCheck(["buyer"]), async (req, res) => {
         const orderItems = [];
         let totalAmount = 0;
 
+        // Process each item in the cart
         for (const cartItem of cart.products) {
             const product = cartItem.product;
 
@@ -72,6 +81,7 @@ router.post("/", verifyToken, roleCheck(["buyer"]), async (req, res) => {
                 return res.status(404).json({ message: "Product not found" });
             }
 
+            // Calculate price with bulk discounts
             const pricing = await calculateBulkPrice(product, cartItem.quantity);
 
             orderItems.push({
@@ -86,6 +96,7 @@ router.post("/", verifyToken, roleCheck(["buyer"]), async (req, res) => {
             totalAmount += pricing.finalPrice;
         }
 
+        // Create new order
         const order = new Order({
             user: userId,
             items: orderItems,
@@ -96,9 +107,12 @@ router.post("/", verifyToken, roleCheck(["buyer"]), async (req, res) => {
         });
 
         await order.save();
+
+        // Clear the cart after successful order
         cart.products = [];
         await cart.save();
 
+        // Get populated order details
         const populatedOrder = await Order.findById(order._id)
             .populate("user", "name email")
             .populate("items.product", "name price images")
@@ -114,6 +128,7 @@ router.post("/", verifyToken, roleCheck(["buyer"]), async (req, res) => {
     }
 });
 
+// Get all orders (admin and sellers only)
 router.get("/", verifyToken, roleCheck(["admin", "seller"]), async (req, res) => {
     try {
         const orders = await Order.find()
@@ -128,6 +143,7 @@ router.get("/", verifyToken, roleCheck(["admin", "seller"]), async (req, res) =>
     }
 });
 
+// Get orders for a specific user
 router.get("/user/:userId", verifyToken, roleCheck(["buyer"]), async (req, res) => {
     try {
         const orders = await Order.find({ user: req.params.userId })
@@ -141,6 +157,7 @@ router.get("/user/:userId", verifyToken, roleCheck(["buyer"]), async (req, res) 
     }
 });
 
+// Admin orders with pagination and filters
 router.get("/admin/orders", verifyToken, roleCheck(["admin"]), async (req, res) => {
     try {
         const { page = 1, limit = 10, status, search, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
@@ -172,6 +189,7 @@ router.get("/admin/orders", verifyToken, roleCheck(["admin"]), async (req, res) 
     }
 });
 
+// Bulk order actions for admin
 router.post("/admin/orders/bulk-actions", verifyToken, roleCheck(["admin"]), async (req, res) => {
     try {
         const { orderIds, action } = req.body;
@@ -199,6 +217,7 @@ router.post("/admin/orders/bulk-actions", verifyToken, roleCheck(["admin"]), asy
     }
 });
 
+// Update order status
 router.put("/:orderId/status", verifyToken, roleCheck(["admin", "seller"]), async (req, res) => {
     try {
         const { orderId } = req.params;
@@ -209,6 +228,7 @@ router.put("/:orderId/status", verifyToken, roleCheck(["admin", "seller"]), asyn
         const order = await Order.findById(orderId).populate("items.product", "name price");
         if (!order) return res.status(404).json({ message: "Order not found" });
 
+        // When order is delivered, track purchases for recommendations
         if (status === "Delivered" && order.status !== "Delivered") {
             for (const item of order.items) {
                 try {
@@ -228,6 +248,7 @@ router.put("/:orderId/status", verifyToken, roleCheck(["admin", "seller"]), asyn
     }
 });
 
+// Get orders for a specific seller
 router.get("/seller/orders", verifyToken, roleCheck(["seller"]), async (req, res) => {
     try {
         const sellerProducts = await Product.find({ seller: req.user.id }).distinct('_id');
@@ -244,6 +265,7 @@ router.get("/seller/orders", verifyToken, roleCheck(["seller"]), async (req, res
     }
 });
 
+// Delete an order
 router.delete("/:orderId", verifyToken, roleCheck(["admin", "seller"]), async (req, res) => {
     try {
         const order = await Order.findByIdAndDelete(req.params.orderId);
@@ -254,6 +276,7 @@ router.delete("/:orderId", verifyToken, roleCheck(["admin", "seller"]), async (r
     }
 });
 
+// Get buyer statistics
 router.get("/buyer/stats", verifyToken, roleCheck(["buyer"]), async (req, res) => {
     try {
         const orders = await Order.find({ user: req.user.id });

@@ -809,7 +809,7 @@ router.get("/seller/stats", verifyToken, roleCheck(["seller"]), async (req, res)
             deliveredOrders,
             cancelledOrders,
 
-            // Revenue - CORRECTED (uses product price, not finalPrice)
+            // Revenue
             totalRevenue,
             successRate: totalOrders > 0 ?
                 ((deliveredOrders / totalOrders) * 100).toFixed(1) + "%" : "0%"

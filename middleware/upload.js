@@ -2,36 +2,40 @@ const multer = require("multer");
 const cloudinary = require("../config/cloudinary");
 const streamifier = require("streamifier");
 
-// Multer memory storage
+// Configure multer to store files in memory (not disk)
 const storage = multer.memoryStorage();
+
+// Set up multer middleware with file size limits and type filtering
 const upload = multer({
     storage,
-    limits: { fileSize: 10 * 1024 * 1024 },
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max file size
     fileFilter: (req, file, cb) => {
+        // Only allow image file types
         const allowedTypes = /jpeg|jpg|png|webp|gif/;
         if (
             allowedTypes.test(file.mimetype) &&
             allowedTypes.test(file.originalname.toLowerCase())
         ) {
-            cb(null, true);
+            cb(null, true); // Accept file
         } else {
-            cb(new Error("Only image files are allowed"), false);
+            cb(new Error("Only image files are allowed"), false); // Reject file
         }
     },
 });
 
-// Single file upload
+// Single file upload middleware for Cloudinary
 const uploadToCloudinarySingle = (folder = "general") => {
     return (req, res, next) => {
         if (!req.file) {
             return res.status(400).json({ message: "No image file provided" });
         }
 
+        // Create upload stream to Cloudinary
         const stream = cloudinary.uploader.upload_stream(
             {
-                folder: `nextrade/${folder}`,
+                folder: `nextrade/${folder}`, // Organize files in folders
                 resource_type: "image",
-                transformation: [{ width: 800, height: 800, crop: "fill" }],
+                transformation: [{ width: 800, height: 800, crop: "fill" }], // Resize images
             },
             (error, result) => {
                 if (error) {
@@ -41,21 +45,23 @@ const uploadToCloudinarySingle = (folder = "general") => {
                     });
                 }
 
+                // Add Cloudinary info to the file object
                 req.file.cloudinary = {
                     url: result.secure_url,
                     publicId: result.public_id,
                 };
 
-                req.file.path = result.secure_url; // backward compatibility
+                req.file.path = result.secure_url; // Keep for backward compatibility
                 next();
             }
         );
 
+        // Pipe the file buffer to Cloudinary
         streamifier.createReadStream(req.file.buffer).pipe(stream);
     };
 };
 
-// Multiple files upload
+// Multiple files upload middleware for Cloudinary
 const uploadToCloudinaryMultiple = (folder = "general") => {
     return async (req, res, next) => {
         if (!req.files || req.files.length === 0) {
@@ -63,6 +69,7 @@ const uploadToCloudinaryMultiple = (folder = "general") => {
         }
 
         try {
+            // Upload all files in parallel
             const uploads = req.files.map(
                 file =>
                     new Promise((resolve, reject) => {
@@ -83,6 +90,7 @@ const uploadToCloudinaryMultiple = (folder = "general") => {
                     })
             );
 
+            // Wait for all uploads to complete
             req.cloudinaryFiles = await Promise.all(uploads);
             next();
         } catch (err) {
@@ -91,13 +99,14 @@ const uploadToCloudinaryMultiple = (folder = "general") => {
     };
 };
 
+// Export middleware combinations for easy use in routes
 module.exports = {
     uploadSingle: (fieldName, folder) => [
-        upload.single(fieldName),
-        uploadToCloudinarySingle(folder),
+        upload.single(fieldName),         // Multer single file upload
+        uploadToCloudinarySingle(folder), // Cloudinary upload
     ],
     uploadMultiple: (fieldName, folder, maxCount = 10) => [
-        upload.array(fieldName, maxCount),
-        uploadToCloudinaryMultiple(folder),
+        upload.array(fieldName, maxCount),    // Multer multiple files upload
+        uploadToCloudinaryMultiple(folder),   // Cloudinary upload
     ],
 };
