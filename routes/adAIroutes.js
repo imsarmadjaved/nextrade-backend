@@ -144,8 +144,8 @@ const getEnhancedFallbackAds = async (userId, limit = 6) => {
 // Main route: Get AI-powered ad recommendations
 // POST /api/ads/recommend_ads/:userId
 router.post("/recommend_ads/:userId", verifyToken, async (req, res) => {
+    const userId = req.params.userId;
     try {
-        const userId = req.params.userId;
 
         // Get all active ads from database
         const ads = await Advertisement.find({
