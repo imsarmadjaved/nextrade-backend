@@ -435,6 +435,16 @@ router.put("/:id/status", verifyToken, roleCheck(["admin"]), async (req, res) =>
     }
 });
 
+// for no-logged in user
+router.get("/", async (req, res) => {
+    try {
+        const ads = await Ad.find({ isActive: true }).limit(10);
+        res.json(ads);
+    } catch (err) {
+        res.status(500).json({ message: "Failed to fetch ads" });
+    }
+});
+
 // Update ads
 router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), async (req, res) => {
     try {
