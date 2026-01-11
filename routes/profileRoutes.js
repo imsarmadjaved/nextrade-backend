@@ -154,13 +154,26 @@ router.put("/me", verifyToken, async (req, res) => {
 
         let updateData = { ...req.body };
 
+        // Handle profileImage field properly
+        if (updateData.profileImage) {
+            // If profileImage is provided, ensure it's stored as an object
+            if (typeof updateData.profileImage === 'string') {
+                updateData.profileImage = {
+                    url: updateData.profileImage,
+                    // If you have publicId from somewhere, include it, otherwise generate or leave empty
+                    publicId: `profile-${userId}-${Date.now()}`
+                };
+            }
+        }
+
         if (!["seller_pending", "seller_approved"].includes(user.role)) {
             const allowedFields = [
                 "phone",
                 "city",
                 "address",
                 "shopName",
-                "shopDescription"
+                "shopDescription",
+                "profileImage"
             ];
 
             updateData = Object.fromEntries(
@@ -212,7 +225,11 @@ router.put("/me", verifyToken, async (req, res) => {
                 phone: profile.phone || "",
                 city: profile.city || "",
                 address: profile.address || "",
-                profileImage: profile.profileImage?.url || "",
+                profileImage: profile.profileImage
+                    ? (typeof profile.profileImage === 'string'
+                        ? profile.profileImage
+                        : profile.profileImage.url || "")
+                    : "",
                 shopName: profile.shopName || userUpdated.storeName || "",
                 shopDescription:
                     profile.shopDescription || userUpdated.storeDescription || "",
@@ -225,7 +242,7 @@ router.put("/me", verifyToken, async (req, res) => {
     }
 });
 
-// Upload / update profile image 
+// Update
 router.post(
     "/image",
     verifyToken,

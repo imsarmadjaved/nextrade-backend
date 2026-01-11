@@ -149,7 +149,7 @@ router.get("/with-product-counts", async (req, res) => {
                     _id: category._id,
                     name: category.name,
                     description: category.description,
-                    image: imageUrl, // String URL
+                    image: imageUrl,
                     icon: category.icon,
                     isFeatured: category.isFeatured,
                     productCount,
@@ -231,7 +231,7 @@ router.put(
             console.log("=== UPDATE CATEGORY DEBUG ===");
             console.log("Request body:", req.body);
 
-            const { name, description, icon, isFeatured, image } = req.body; // Accept image URL in body
+            const { name, description, icon, isFeatured, image } = req.body;
             const categoryId = req.params.id;
 
             // Find the category

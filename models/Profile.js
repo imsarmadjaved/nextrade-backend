@@ -22,8 +22,8 @@ const profileSchema = new mongoose.Schema(
             trim: true
         },
         profileImage: {
-            type: String,
-            default: ""
+            url: { type: String, default: "" },
+            publicId: { type: String, default: "" }
         },
 
         // Business Verification Fields (for sellers)
