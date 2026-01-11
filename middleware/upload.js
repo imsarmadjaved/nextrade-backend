@@ -51,7 +51,7 @@ const uploadToCloudinarySingle = (folder = "general") => {
                     publicId: result.public_id,
                 };
 
-                req.file.path = result.secure_url; // Keep for backward compatibility
+                req.file.path = result.secure_url;
                 next();
             }
         );

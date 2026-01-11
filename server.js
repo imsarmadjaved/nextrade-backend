@@ -1,5 +1,5 @@
+require("dotenv").config();
 const express = require("express");
-const dotenv = require("dotenv");
 const cors = require("cors");
 const path = require("path");
 const connectDB = require("./config/db");
@@ -23,7 +23,6 @@ const paymentRoutes = require("./routes/paymentRoutes");
 const contactRoutes = require('./routes/contactRoute');
 const uploadRoutes = require("./routes/uploadRoutes");
 
-dotenv.config();
 const app = express();
 
 // CORS configuration
