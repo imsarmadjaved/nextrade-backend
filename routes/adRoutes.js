@@ -404,8 +404,10 @@ router.put("/:id/status", verifyToken, roleCheck(["admin"]), async (req, res) =>
             ad.isActive = false;
             ad.rejectedAt = new Date();
 
-            // Send rejection email
-            await sendAdRejectionEmail(ad, ad.rejectionReason, false);
+            // Send rejection email ASYNCHRONOUSLY
+            sendAdRejectionEmail(ad, ad.rejectionReason, false).catch(error => {
+                console.error("Failed to send rejection email:", error);
+            });
         }
 
         // Handle approved ads
@@ -413,8 +415,10 @@ router.put("/:id/status", verifyToken, roleCheck(["admin"]), async (req, res) =>
             ad.approvedAt = new Date();
             ad.isActive = false; // Not active until payment is completed
 
-            // Send approval email with payment instructions
-            await sendAdApprovalEmail(ad);
+            // Send approval email ASYNCHRONOUSLY (don't await)
+            sendAdApprovalEmail(ad).catch(error => {
+                console.error("Failed to send approval email:", error);
+            });
         }
 
         await ad.save();
@@ -428,7 +432,9 @@ router.put("/:id/status", verifyToken, roleCheck(["admin"]), async (req, res) =>
             message: `Ad status updated to ${status}`,
             ad: updatedAd,
             oldStatus,
-            newStatus: status
+            newStatus: status,
+            // Add a note if email might be delayed
+            emailSent: status === "approved" || status === "rejected"
         });
     } catch (err) {
         res.status(500).json({ message: "Server error", error: err.message });
