@@ -12,17 +12,19 @@ router.post(
     "/",
     verifyToken,
     roleCheck(["admin"]),
-    uploadSingle("image", "categories"),
     async (req, res) => {
         try {
-            const { name, description, icon, isFeatured } = req.body;
+            const { name, description, icon, isFeatured, image } = req.body;
+
+            console.log("=== CREATE CATEGORY DEBUG ===");
+            console.log("Request body:", req.body);
 
             const existing = await Category.findOne({ name });
             if (existing) {
                 return res.status(400).json({ message: "Category already exists" });
             }
 
-            // Create category with Cloudinary data
+            // Create category with image URL from request body
             const categoryData = {
                 name,
                 description,
@@ -30,11 +32,11 @@ router.post(
                 isFeatured: isFeatured || false,
             };
 
-            // Add image data if uploaded
-            if (req.file && req.file.cloudinary) {
+            // Add image if provided as URL
+            if (image) {
                 categoryData.image = {
-                    url: req.file.cloudinary.url,
-                    publicId: req.file.cloudinary.publicId
+                    url: image,
+                    publicId: null
                 };
             }
 
@@ -46,11 +48,7 @@ router.post(
 
             res.status(201).json({
                 message: "Category created successfully",
-                category: savedCategory, // Send formatted version
-                imageInfo: req.cloudinaryData ? {
-                    url: req.cloudinaryData.url,
-                    publicId: req.cloudinaryData.publicId
-                } : null
+                category: savedCategory
             });
         } catch (err) {
             console.error("Error creating category:", err);
@@ -98,23 +96,16 @@ router.get("/with-counts", async (req, res) => {
                     });
 
                     // Always return image as string URL
-                    let imageUrl = "";
-                    if (category.image) {
-                        if (typeof category.image === 'string') {
-                            imageUrl = category.image;
-                        } else if (category.image.url) {
-                            imageUrl = category.image.url;
-                        }
-                    }
+                    let imageUrl = category.image?.url || "";
 
                     return {
                         _id: category._id,
                         name: category.name,
                         description: category.description,
-                        image: imageUrl, // Always string URL
+                        image: imageUrl,
                         icon: category.icon,
                         isFeatured: category.isFeatured,
-                        productCount: productCount,
+                        productCount,
                         createdAt: category.createdAt,
                         updatedAt: category.updatedAt
                     };
@@ -204,14 +195,29 @@ router.get("/:id", async (req, res) => {
         const category = await Category.findById(req.params.id);
         if (!category) return res.status(404).json({ message: "Category not found" });
 
+        // Add this debug log
+        console.log("Found category:", {
+            id: category._id,
+            name: category.name,
+            image: category.image,
+            imageType: typeof category.image
+        });
+
         // Convert to plain object and format image
         const categoryObj = category.toObject();
         categoryObj.image = categoryObj.image?.url || "";
 
+        // Debug the final output
+        console.log("Final category object:", categoryObj);
+
         res.json(categoryObj);
     } catch (err) {
         console.error("Error fetching category:", err);
-        res.status(500).json({ message: "Server error", error: err.message });
+        res.status(500).json({
+            message: "Server error",
+            error: err.message,
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        });
     }
 });
 
@@ -220,58 +226,70 @@ router.put(
     "/:id",
     verifyToken,
     roleCheck(["admin"]),
-    uploadSingle("image", "categories"),
     async (req, res) => {
         try {
-            const { name, description, icon, isFeatured } = req.body;
+            console.log("=== UPDATE CATEGORY DEBUG ===");
+            console.log("Request body:", req.body);
 
-            const category = await Category.findById(req.params.id);
+            const { name, description, icon, isFeatured, image } = req.body; // Accept image URL in body
+            const categoryId = req.params.id;
+
+            // Find the category
+            const category = await Category.findById(categoryId);
             if (!category) {
                 return res.status(404).json({ message: "Category not found" });
             }
 
-            // Check for name uniqueness (if name is being changed)
+            // Check for name uniqueness
             if (name && name !== category.name) {
                 const existing = await Category.findOne({ name });
                 if (existing) {
                     return res.status(400).json({ message: "Category name already exists" });
                 }
+                category.name = name;
             }
 
             // Update basic fields
-            if (name) category.name = name;
             if (description !== undefined) category.description = description;
             if (icon !== undefined) category.icon = icon;
             if (isFeatured !== undefined) category.isFeatured = isFeatured;
 
-            // Update image if new one uploaded
-            if (req.file && req.file.cloudinary) {
+            // Handle image - accept URL from request body
+            if (image !== undefined) {
+                if (image) {
+                    if (category.image?.publicId) {
+                        await cloudinary.uploader.destroy(category.image.publicId);
+                    }
 
-                // delete old image
-                if (category.image?.publicId) {
-                    await cloudinary.uploader.destroy(category.image.publicId);
+                    category.image = {
+                        url: image,
+                        publicId: null
+                    };
+                } else {
+                    if (category.image?.publicId) {
+                        await cloudinary.uploader.destroy(category.image.publicId);
+                    }
+                    category.image = { url: "", publicId: null };
                 }
-
-                category.image = {
-                    url: req.file.cloudinary.url,
-                    publicId: req.file.cloudinary.publicId
-                };
             }
 
             await category.save();
+
+            // Format response
             const updatedCategory = category.toObject();
             updatedCategory.image = updatedCategory.image?.url || "";
 
             res.json({
                 message: "Category updated successfully",
                 category: updatedCategory,
-                imageUpdated: !!req.cloudinaryData
+                imageUpdated: image !== undefined
             });
         } catch (err) {
-            console.error("Error updating category:", err);
+            console.error("ERROR updating category:", err);
             res.status(500).json({
                 message: "Server error",
-                error: err.message
+                error: err.message,
+                stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
             });
         }
     }

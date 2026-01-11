@@ -19,16 +19,7 @@ const categorySchema = new mongoose.Schema(
             },
             publicId: {
                 type: String,
-                default: ""
-            },
-            width: {
-                type: Number
-            },
-            height: {
-                type: Number
-            },
-            format: {
-                type: String
+                default: null
             }
         },
         icon: {
