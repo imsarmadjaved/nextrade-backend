@@ -50,11 +50,6 @@ const productSchema = new mongoose.Schema(
         numReviews: {
             type: Number, default: 0
         },
-        sku: {
-            type: String,
-            unique: true,
-            sparse: true
-        },
         salePrice: {
             type: Number,
             min: 0
