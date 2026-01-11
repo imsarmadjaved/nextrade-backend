@@ -450,6 +450,11 @@ router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), async (req, res)
     try {
         const { isActive, image, ...otherUpdates } = req.body;
 
+        // Check if isActive is being sent in the request
+        if (isActive !== undefined) {
+            otherUpdates.isActive = isActive;
+        }
+
         const ad = await Ad.findById(req.params.id)
             .populate('seller', 'name email')
             .populate('payment');
@@ -479,7 +484,7 @@ router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), async (req, res)
                 });
             }
 
-            if (!ad.payment || ad.payment.status !== "completed") {
+            if (ad.payment.status !== "completed") {
                 return res.status(400).json({
                     message: `Cannot activate ad. Payment status is ${ad.payment.status}. Payment must be completed.`
                 });
@@ -525,7 +530,10 @@ router.put("/:id", verifyToken, roleCheck(["seller", "admin"]), async (req, res)
             }
         }
 
-        // Update the ad
+        // Add updatedAt timestamp
+        otherUpdates.updatedAt = new Date();
+
+        // Update the ad with all fields
         const updatedAd = await Ad.findByIdAndUpdate(
             req.params.id,
             otherUpdates,
